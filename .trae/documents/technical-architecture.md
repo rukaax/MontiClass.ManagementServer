@@ -32,8 +32,8 @@ flowchart TB
 - **前端**：Vue@3 + Vue Router@4 + Pinia + Vite + ECharts（自定义 Fluent Design 风格组件）
 - **后端**：Node.js + Express@4 + jsonwebtoken + dotenv + cors
 - **数据库**：PostgreSQL（通过 node-postgres `pg` 驱动访问）
-- **鉴权**：设备上报使用可配置 Token（Bearer）；管理员会话使用 JWT
-- **配置**：所有密钥、数据库连接串、管理员账号置于 `.env`，不进入版本控制
+- **鉴权**：设备上报使用可配置 Token（Bearer）；管理员账号密码存于数据库 `users` 表（pgcrypto bcrypt 哈希），会话使用 JWT
+- **配置**：数据库连接串、JWT 密钥等置于 `.env`；管理员凭证存于数据库（见 `schema.sql`）
 
 ## 3. 路由定义（前端）
 
@@ -73,8 +73,11 @@ interface ReportPayload {
 
 ```typescript
 // POST /api/auth/login
+// 账号密码存于 users 表，密码用 pgcrypto crypt() + gen_salt('bf',10) 做 bcrypt 哈希
 interface LoginReq { username: string; password: string; }
-interface LoginRes { token: string; }   // JWT
+interface LoginRes { ok: true; token: string; username: string; }   // token 为 JWT
+// 校验 SQL：SELECT id,username,role FROM users
+//          WHERE username=$1 AND password_hash = crypt($2, password_hash)
 ```
 
 ### 4.3 数据查询（需 JWT）
@@ -230,17 +233,12 @@ ESP32-WEB/
 PORT=3000
 NODE_ENV=development
 
-# 数据库
-PG_HOST=127.0.0.1
-PG_PORT=5432
-PG_DATABASE=esp32_classroom
-PG_USER=postgres
-PG_PASSWORD=changeme
+# 数据库（连接串格式）
+DATABASE_URL=postgresql://postgres:changeme@127.0.0.1:5432/esp32_classroom
 
 # 鉴权
 JWT_SECRET=please-change-this-secret
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=changeme
+# 管理员账号密码存于数据库 users 表（默认 admin/admin，bcrypt 哈希，见 schema.sql）
 
 # 设备上报 Token 初始值（首次启动写入数据库，之后由管理页修改）
 INITIAL_DEVICE_TOKEN=esp32-classroom-token-2026

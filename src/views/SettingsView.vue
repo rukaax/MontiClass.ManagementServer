@@ -258,7 +258,7 @@ onMounted(() => {
         </div>
       </div>
       <p class="mt-4 text-[12px] text-ink-4">
-        账号密码在服务端 <code class="px-1 rounded bg-surface-hover">.env</code> 中配置（ADMIN_USERNAME / ADMIN_PASSWORD）
+        账号密码存于数据库 <code class="px-1 rounded bg-surface-hover">users</code> 表（bcrypt 哈希加密），修改密码请执行 <code class="px-1 rounded bg-surface-hover">schema.sql</code> 末尾的 UPDATE 语句
       </p>
     </div>
   </div>
