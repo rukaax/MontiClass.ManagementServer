@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============ Fluent Design Tokens ============ */
+:root {
+  /* 品牌色 */
+  --fluent-primary: #0078d4;
+  --fluent-primary-hover: #106ebe;
+  --fluent-primary-pressed: #005a9e;
+  --fluent-primary-tint: #eff6fc;
+
+  /* 中性色（浅色主题） */
+  --bg-base: #f3f3f3;
+  --bg-mica: #faf9f8;
+  --bg-card: #ffffff;
+  --bg-card-2: #fbfbfb;
+  --bg-hover: #f3f2f1;
+  --bg-pressed: #edebe9;
+
+  --stroke: #edebe9;
+  --stroke-strong: #d2d0ce;
+  --divider: #e1dfdd;
+
+  --text-1: #201f1e;
+  --text-2: #3b3a39;
+  --text-3: #605e5c;
+  --text-4: #8a8886;
+
+  /* 状态色 */
+  --success: #107c10;
+  --success-bg: #dff6dd;
+  --warning: #f7630c;
+  --warning-bg: #fed9a8;
+  --danger: #d13438;
+  --danger-bg: #fde7e9;
+  --info: #0078d4;
+  --info-bg: #eff6fc;
+
+  /* 阴影（Fluent depth） */
+  --shadow-2: 0 1px 2px rgba(0,0,0,.10), 0 0 1px rgba(0,0,0,.06);
+  --shadow-4: 0 2px 4px rgba(0,0,0,.10), 0 0 2px rgba(0,0,0,.06);
+  --shadow-8: 0 4px 8px rgba(0,0,0,.12), 0 0 2px rgba(0,0,0,.06);
+  --shadow-16: 0 8px 16px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.06);
+  --shadow-64: 0 32px 64px rgba(0,0,0,.22), 0 0 2px rgba(0,0,0,.06);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+.dark {
+  --fluent-primary: #4cc2ff;
+  --fluent-primary-hover: #6fc7ff;
+  --fluent-primary-pressed: #2899e5;
+  --fluent-primary-tint: #08323c;
+
+  --bg-base: #0b0b0b;
+  --bg-mica: #1b1a19;
+  --bg-card: #292827;
+  --bg-card-2: #323130;
+  --bg-hover: #3b3a39;
+  --bg-pressed: #454443;
+
+  --stroke: #3b3a39;
+  --stroke-strong: #484746;
+  --divider: #403e3d;
+
+  --text-1: #ffffff;
+  --text-2: #f3f2f1;
+  --text-3: #c8c6c4;
+  --text-4: #91918f;
+
+  --success-bg: #094a1d;
+  --warning-bg: #4a2e07;
+  --danger-bg: #4a0e10;
+  --info-bg: #08323c;
+}
+
+* {
+  border-color: var(--stroke);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: 'Segoe UI', 'Segoe UI Variable', 'Microsoft YaHei UI',
+    'Microsoft YaHei', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============ 工具类 ============ */
+@layer components {
+  .fluent-card {
+    background: var(--bg-card);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+    transition: box-shadow 0.18s var(--ease), transform 0.18s var(--ease),
+      border-color 0.18s var(--ease);
+  }
+  .fluent-card.hoverable:hover {
+    box-shadow: var(--shadow-8);
+    border-color: var(--stroke-strong);
+  }
+
+  .acrylic {
+    background: color-mix(in srgb, var(--bg-card) 75%, transparent);
+    backdrop-filter: blur(40px) saturate(140%);
+    -webkit-backdrop-filter: blur(40px) saturate(140%);
+  }
+  .acrylic-strong {
+    background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+    backdrop-filter: blur(60px) saturate(160%);
+    -webkit-backdrop-filter: blur(60px) saturate(160%);
+  }
+
+  .mica-bg {
+    background:
+      radial-gradient(1200px 600px at 12% -10%, rgba(0, 120, 212, 0.10), transparent 60%),
+      radial-gradient(900px 500px at 110% 0%, rgba(16, 124, 0, 0.07), transparent 55%),
+      var(--bg-base);
+  }
+
+  .text-1 { color: var(--text-1); }
+  .text-2 { color: var(--text-2); }
+  .text-3 { color: var(--text-3); }
+  .text-4 { color: var(--text-4); }
+  .bg-card { background: var(--bg-card); }
+  .border-stroke { border-color: var(--stroke); }
+}
+
+/* 滚动条（Fluent 风格） */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--stroke-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-4);
+  background-clip: content-box;
+}
+
+/* Reveal 高光（卡片悬浮跟随鼠标） */
+.reveal {
+  position: relative;
+  overflow: hidden;
+}
+.reveal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    180px circle at var(--rx, 50%) var(--ry, 50%),
+    rgba(255, 255, 255, 0.25),
+    transparent 60%
+  );
+  transition: opacity 0.2s var(--ease);
+}
+.reveal:hover::after {
+  opacity: 1;
+}
+
+/* 脉冲（在线指示灯） */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(16, 124, 0, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 124, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 124, 0, 0); }
+}
+.pulse-dot {
+  animation: pulse-ring 2s infinite;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fade-up 0.4s var(--ease) both;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--stroke-strong);
+  border-top-color: var(--fluent-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
