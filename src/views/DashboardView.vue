@@ -5,7 +5,6 @@ import {
   Lightbulb,
   Wind,
   Thermometer,
-  Gauge,
   UserCheck,
   RefreshCw,
   Radio,
@@ -189,20 +188,20 @@ onUnmounted(() => {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <MetricCard
         label="光敏 1"
-        :value="loadingLatest ? null : fmtNum(latest?.light1, 0)"
-        unit="ADC"
+        :value="loadingLatest ? null : fmtNum(latest?.light1)"
+        unit="%"
         :icon="Sun"
         status="warning"
-        hint="光敏传感器 1 原始值"
+        :hint="`亮度百分比 · ADC ${latest?.light1_adc ?? '—'}`"
         :loading="loadingLatest"
       />
       <MetricCard
         label="光敏 2"
-        :value="loadingLatest ? null : fmtNum(latest?.light2, 0)"
-        unit="ADC"
+        :value="loadingLatest ? null : fmtNum(latest?.light2)"
+        unit="%"
         :icon="Lightbulb"
         status="warning"
-        hint="光敏传感器 2 原始值"
+        :hint="`亮度百分比 · ADC ${latest?.light2_adc ?? '—'}`"
         :loading="loadingLatest"
       />
       <MetricCard
@@ -221,15 +220,6 @@ onUnmounted(() => {
         :icon="Thermometer"
         :status="tempStatus(latest?.temperature ?? null)"
         :hint="tempStatus(latest?.temperature ?? null) === 'success' ? '舒适' : '需关注'"
-        :loading="loadingLatest"
-      />
-      <MetricCard
-        label="风速"
-        :value="loadingLatest ? null : fmtNum(latest?.speed)"
-        unit="m/s"
-        :icon="Gauge"
-        status="info"
-        hint="实时风速"
         :loading="loadingLatest"
       />
       <MetricCard

@@ -24,15 +24,23 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS device_reports (
     id           BIGSERIAL    PRIMARY KEY,
     device_id    VARCHAR(64)  NOT NULL,
-    light1       INTEGER,                       -- 光敏1 ADC 值 0-4095
-    light2       INTEGER,                       -- 光敏2 ADC 值 0-4095
+    light1       NUMERIC(5,2),                  -- 光敏1 亮度百分比 0-100
+    light2       NUMERIC(5,2),                  -- 光敏2 亮度百分比 0-100
+    light1_adc   INTEGER,                       -- 光敏1 ADC 原始值 0-4095
+    light2_adc   INTEGER,                       -- 光敏2 ADC 原始值 0-4095
     aqi          INTEGER,                       -- 空气质量指数 0-500
     temperature  NUMERIC(5,2),                  -- 温度 ℃
-    speed        NUMERIC(5,2),                  -- 风速 m/s
     presence     BOOLEAN,                       -- 是否有人
     reported_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- 兼容旧库迁移：light1/2 转 NUMERIC、新增 ADC 列、移除 speed
+ALTER TABLE device_reports ALTER COLUMN light1 TYPE NUMERIC(5,2) USING light1::numeric(5,2);
+ALTER TABLE device_reports ALTER COLUMN light2 TYPE NUMERIC(5,2) USING light2::numeric(5,2);
+ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light1_adc INTEGER;
+ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light2_adc INTEGER;
+ALTER TABLE device_reports DROP COLUMN IF EXISTS speed;
 
 CREATE INDEX IF NOT EXISTS idx_reports_device_id   ON device_reports(device_id);
 CREATE INDEX IF NOT EXISTS idx_reports_reported_at ON device_reports(reported_at DESC);

@@ -1,10 +1,11 @@
 export interface ReportPayload {
   device_id: string
-  light1?: number | null
-  light2?: number | null
+  light1?: number | null          // 光敏1 亮度百分比 0-100
+  light2?: number | null          // 光敏2 亮度百分比 0-100
+  light1_adc?: number | null      // 光敏1 ADC 原始值 0-4095
+  light2_adc?: number | null      // 光敏2 ADC 原始值 0-4095
   aqi?: number | null
   temperature?: number | null
-  speed?: number | null
   presence?: boolean | null
   reported_at?: string | null
 }
@@ -14,9 +15,10 @@ export interface ReportRow {
   device_id: string
   light1: number | null
   light2: number | null
+  light1_adc: number | null
+  light2_adc: number | null
   aqi: number | null
   temperature: number | null
-  speed: number | null
   presence: boolean | null
   reported_at: string
   received_at: string

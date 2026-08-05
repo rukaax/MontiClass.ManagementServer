@@ -14,16 +14,33 @@ export async function migrate(): Promise<void> {
       CREATE TABLE IF NOT EXISTS device_reports (
         id           BIGSERIAL PRIMARY KEY,
         device_id    VARCHAR(64)  NOT NULL,
-        light1       INTEGER,
-        light2       INTEGER,
+        light1       NUMERIC(5,2),
+        light2       NUMERIC(5,2),
+        light1_adc   INTEGER,
+        light2_adc   INTEGER,
         aqi          INTEGER,
         temperature  NUMERIC(5,2),
-        speed        NUMERIC(5,2),
         presence     BOOLEAN,
         reported_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
         received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       );
     `)
+    // 兼容旧库迁移：light1/2 转 NUMERIC、新增 ADC 列、移除 speed
+    await client.query(
+      `ALTER TABLE device_reports ALTER COLUMN light1 TYPE NUMERIC(5,2) USING light1::numeric(5,2);`,
+    )
+    await client.query(
+      `ALTER TABLE device_reports ALTER COLUMN light2 TYPE NUMERIC(5,2) USING light2::numeric(5,2);`,
+    )
+    await client.query(
+      `ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light1_adc INTEGER;`,
+    )
+    await client.query(
+      `ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light2_adc INTEGER;`,
+    )
+    await client.query(
+      `ALTER TABLE device_reports DROP COLUMN IF EXISTS speed;`,
+    )
     await client.query(
       `CREATE INDEX IF NOT EXISTS idx_reports_device_id   ON device_reports(device_id);`,
     )

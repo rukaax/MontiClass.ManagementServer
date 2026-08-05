@@ -110,8 +110,7 @@ async function submit() {
         </FluentButton>
 
         <p class="mt-5 text-center text-[12px] text-ink-4">
-          默认账号 <code class="px-1 py-0.5 rounded bg-surface-hover">admin</code> /
-          <code class="px-1 py-0.5 rounded bg-surface-hover">admin</code>（存于数据库，已加密）
+          账号密码存于数据库，已加密存储
         </p>
       </form>
     </div>

@@ -130,9 +130,10 @@ export function multiLineOption(cfg: MultiLineConfig, allPoints: { metric: strin
 
 /** 占位状态：根据 metric 名返回中文标题 */
 export const METRIC_META: Record<string, { label: string; unit: string; color: string }> = {
-  light1: { label: '光敏 1', unit: 'ADC', color: '#F7630C' },
-  light2: { label: '光敏 2', unit: 'ADC', color: '#CA5010' },
+  light1: { label: '光敏 1', unit: '%', color: '#F7630C' },
+  light2: { label: '光敏 2', unit: '%', color: '#CA5010' },
+  light1_adc: { label: '光敏 1 ADC', unit: 'ADC', color: '#E8830C' },
+  light2_adc: { label: '光敏 2 ADC', unit: 'ADC', color: '#B95010' },
   aqi: { label: '空气质量指数', unit: 'AQI', color: '#0078D4' },
   temperature: { label: '温度', unit: '°C', color: '#D13438' },
-  speed: { label: '风速', unit: 'm/s', color: '#107C10' },
 }

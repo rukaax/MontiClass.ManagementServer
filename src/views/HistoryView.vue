@@ -76,15 +76,16 @@ function aqiStatus(v: number | null) {
 }
 
 function exportCsv() {
-  const cols = ['上报时间', '设备ID', '光敏1', '光敏2', 'AQI', '温度(°C)', '风速(m/s)', '是否有人']
+  const cols = ['上报时间', '设备ID', '光敏1(%)', '光敏2(%)', '光敏1 ADC', '光敏2 ADC', 'AQI', '温度(°C)', '是否有人']
   const rows = items.value.map((r) => [
     fmtDateTime(r.reported_at),
     r.device_id,
     r.light1 ?? '',
     r.light2 ?? '',
+    r.light1_adc ?? '',
+    r.light2_adc ?? '',
     r.aqi ?? '',
     r.temperature ?? '',
-    r.speed ?? '',
     r.presence == null ? '' : r.presence ? '有人' : '无人',
   ])
   const csv = [cols, ...rows]
@@ -164,15 +165,16 @@ onMounted(async () => {
               <th class="px-4 py-3 font-medium">设备 ID</th>
               <th class="px-4 py-3 font-medium">光敏 1</th>
               <th class="px-4 py-3 font-medium">光敏 2</th>
+              <th class="px-4 py-3 font-medium">光敏1 ADC</th>
+              <th class="px-4 py-3 font-medium">光敏2 ADC</th>
               <th class="px-4 py-3 font-medium">AQI</th>
               <th class="px-4 py-3 font-medium">温度</th>
-              <th class="px-4 py-3 font-medium">风速</th>
               <th class="px-4 py-3 font-medium">是否有人</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="8" class="px-4 py-16 text-center text-ink-3">
+              <td colspan="9" class="px-4 py-16 text-center text-ink-3">
                 <div class="flex flex-col items-center gap-3">
                   <div class="spinner" />
                   <span>加载中…</span>
@@ -180,7 +182,7 @@ onMounted(async () => {
               </td>
             </tr>
             <tr v-else-if="!items.length">
-              <td colspan="8" class="px-4 py-16 text-center text-ink-3">
+              <td colspan="9" class="px-4 py-16 text-center text-ink-3">
                 <div class="flex flex-col items-center gap-3">
                   <Inbox :size="32" class="text-ink-4" />
                   <span>暂无数据</span>
@@ -195,13 +197,14 @@ onMounted(async () => {
             >
               <td class="px-4 py-3 text-ink-1 tabular-nums">{{ fmtDateTime(r.reported_at) }}</td>
               <td class="px-4 py-3 text-ink-2">{{ r.device_id }}</td>
-              <td class="px-4 py-3 tabular-nums text-ink-2">{{ r.light1 ?? '—' }}</td>
-              <td class="px-4 py-3 tabular-nums text-ink-2">{{ r.light2 ?? '—' }}</td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.light1) }} %</td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.light2) }} %</td>
+              <td class="px-4 py-3 tabular-nums text-ink-3">{{ r.light1_adc ?? '—' }}</td>
+              <td class="px-4 py-3 tabular-nums text-ink-3">{{ r.light2_adc ?? '—' }}</td>
               <td class="px-4 py-3">
                 <FluentBadge :status="aqiStatus(r.aqi)">{{ r.aqi ?? '—' }}</FluentBadge>
               </td>
               <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.temperature) }} °C</td>
-              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.speed) }} m/s</td>
               <td class="px-4 py-3">
                 <FluentBadge :status="r.presence ? 'info' : 'neutral'" dot>
                   {{ r.presence == null ? '—' : r.presence ? '有人' : '无人' }}

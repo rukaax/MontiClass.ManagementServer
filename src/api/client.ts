@@ -3,9 +3,10 @@ export interface ReportRow {
   device_id: string
   light1: number | null
   light2: number | null
+  light1_adc: number | null
+  light2_adc: number | null
   aqi: number | null
   temperature: number | null
-  speed: number | null
   presence: boolean | null
   reported_at: string
   received_at: string
@@ -138,6 +139,18 @@ export const api = {
     return request<{ ok: true }>('/settings/token', {
       method: 'PUT',
       body: JSON.stringify({ new_token }),
+    })
+  },
+  rotateToken() {
+    return request<{ ok: true; data: { token: string } }>(
+      '/settings/token/rotate',
+      { method: 'POST' },
+    )
+  },
+  changePassword(current_password: string, new_password: string) {
+    return request<{ ok: true }>('/settings/password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password }),
     })
   },
   devices() {

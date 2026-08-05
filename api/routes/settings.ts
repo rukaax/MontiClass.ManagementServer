@@ -6,6 +6,8 @@ import { authJwt } from '../middleware/authJwt.js'
 import {
   getDeviceToken,
   updateDeviceToken,
+  rotateDeviceToken,
+  changePassword,
   listDevices,
   maskToken,
 } from '../services/settingsService.js'
@@ -26,7 +28,7 @@ router.get('/token', async (_req: Request, res: Response): Promise<void> => {
   })
 })
 
-/** PUT /api/settings/token —— 重置设备 Token */
+/** PUT /api/settings/token —— 手动设置设备 Token（自定义） */
 router.put('/token', async (req: Request, res: Response): Promise<void> => {
   const newToken = String(req.body?.new_token || '').trim()
   if (newToken.length < 6) {
@@ -34,6 +36,34 @@ router.put('/token', async (req: Request, res: Response): Promise<void> => {
     return
   }
   await updateDeviceToken(newToken)
+  res.json({ ok: true })
+})
+
+/** POST /api/settings/token/rotate —— 随机生成新 Token，返回明文（仅此一次） */
+router.post('/token/rotate', async (_req: Request, res: Response): Promise<void> => {
+  const token = await rotateDeviceToken()
+  res.json({ ok: true, data: { token } })
+})
+
+/** POST /api/settings/password —— 修改当前管理员密码 */
+router.post('/password', async (req: Request, res: Response): Promise<void> => {
+  const admin = (req as Request & { admin?: { sub: string } }).admin
+  const username = admin?.sub || ''
+  const current = String(req.body?.current_password || '')
+  const next = String(req.body?.new_password || '')
+  if (next.length < 6) {
+    res.status(400).json({ ok: false, error: '新密码至少 6 个字符' })
+    return
+  }
+  if (current === next) {
+    res.status(400).json({ ok: false, error: '新密码不能与当前密码相同' })
+    return
+  }
+  const ok = await changePassword(username, current, next)
+  if (!ok) {
+    res.status(400).json({ ok: false, error: '当前密码错误' })
+    return
+  }
   res.json({ ok: true })
 })
 

@@ -12,7 +12,6 @@ import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import reportsRoutes from './routes/reports.js'
 import settingsRoutes from './routes/settings.js'
-import { ensureSchema } from './db/migrate.js'
 
 dotenv.config()
 
@@ -34,9 +33,6 @@ app.use(
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-/** 启动时确保表结构存在（幂等） */
-ensureSchema().catch((e) => console.error('[db] migrate failed', e))
-
 /**
  * API Routes
  */
@@ -57,8 +53,8 @@ app.use(
   },
 )
 
-/** 404 */
-app.use((_req: Request, res: Response): void => {
+/** /api 404（仅作用于 API 路径，非 /api 路径交给前端 SPA） */
+app.use('/api', (_req: Request, res: Response): void => {
   res.status(404).json({ ok: false, error: 'API not found' })
 })
 

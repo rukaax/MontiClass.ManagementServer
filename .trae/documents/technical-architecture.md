@@ -55,11 +55,12 @@ flowchart TB
 // Request Body
 interface ReportPayload {
   device_id: string;          // 设备标识
-  light1?: number;            // 光敏1 ADC 原始值 0-4095
-  light2?: number;            // 光敏2 ADC 原始值 0-4095
+  light1?: number;            // 光敏1 亮度百分比 0-100
+  light2?: number;            // 光敏2 亮度百分比 0-100
+  light1_adc?: number;        // 光敏1 ADC 原始值 0-4095
+  light2_adc?: number;        // 光敏2 ADC 原始值 0-4095
   aqi?: number;               // 空气质量指数 0-500
   temperature?: number;       // 温度 ℃
-  speed?: number;             // 风速 m/s
   presence?: boolean;         // 是否有人
   reported_at?: string;       // 设备本地时间 ISO，缺省用服务端时间
 }
@@ -86,11 +87,12 @@ interface LoginRes { ok: true; token: string; username: string; }   // token 为
 // GET /api/reports/latest
 interface LatestRes {
   device_id: string;
-  light1: number | null;       // 光敏1
-  light2: number | null;       // 光敏2
+  light1: number | null;       // 光敏1 百分比
+  light2: number | null;       // 光敏2 百分比
+  light1_adc: number | null;   // 光敏1 ADC
+  light2_adc: number | null;   // 光敏2 ADC
   aqi: number | null;          // AQI
   temperature: number | null;  // 温度 ℃
-  speed: number | null;        // 风速 m/s
   presence: boolean | null;    // 是否有人
   reported_at: string;
   received_at: string;
@@ -146,11 +148,12 @@ erDiagram
     DEVICE_REPORTS {
         bigint id PK
         varchar device_id
-        int light1
-        int light2
+        numeric light1
+        numeric light2
+        int light1_adc
+        int light2_adc
         int aqi
         numeric temperature
-        numeric speed
         boolean presence
         timestamp reported_at
         timestamp received_at
@@ -169,11 +172,12 @@ erDiagram
 CREATE TABLE IF NOT EXISTS device_reports (
     id           BIGSERIAL PRIMARY KEY,
     device_id    VARCHAR(64)  NOT NULL,
-    light1       INTEGER,              -- 光敏1 ADC 值 0-4095
-    light2       INTEGER,              -- 光敏2 ADC 值 0-4095
+    light1       NUMERIC(5,2),         -- 光敏1 亮度百分比 0-100
+    light2       NUMERIC(5,2),         -- 光敏2 亮度百分比 0-100
+    light1_adc   INTEGER,              -- 光敏1 ADC 原始值 0-4095
+    light2_adc   INTEGER,              -- 光敏2 ADC 原始值 0-4095
     aqi          INTEGER,              -- 空气质量指数 0-500
     temperature  NUMERIC(5,2),         -- 温度 ℃
-    speed        NUMERIC(5,2),         -- 风速 m/s
     presence     BOOLEAN,              -- 是否有人
     reported_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()

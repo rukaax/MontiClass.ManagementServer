@@ -30,9 +30,10 @@ router.post(
       device_id: deviceId,
       light1: body.light1 != null ? Number(body.light1) : null,
       light2: body.light2 != null ? Number(body.light2) : null,
+      light1_adc: body.light1_adc != null ? Number(body.light1_adc) : null,
+      light2_adc: body.light2_adc != null ? Number(body.light2_adc) : null,
       aqi: body.aqi != null ? Number(body.aqi) : null,
       temperature: body.temperature != null ? Number(body.temperature) : null,
-      speed: body.speed != null ? Number(body.speed) : null,
       presence: body.presence == null ? null : Boolean(body.presence),
       reported_at: body.reported_at || null,
     }

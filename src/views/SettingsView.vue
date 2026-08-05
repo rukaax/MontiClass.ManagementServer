@@ -8,6 +8,7 @@ import {
   Check,
   RefreshCw,
   AlertTriangle,
+  Lock,
 } from 'lucide-vue-next'
 import { api, type DeviceInfo } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
@@ -18,16 +19,24 @@ import { fmtDateTime, timeAgo } from '@/lib/format'
 
 const auth = useAuthStore()
 
+// ===== Token =====
 const tokenMasked = ref('')
 const tokenUpdatedAt = ref<string | null>(null)
 const tokenLoading = ref(true)
+const showRotate = ref(false)
+const rotating = ref(false)
+const rotatedToken = ref('') // 轮换后的完整明文，仅显示一次
+const copiedMasked = ref(false)
+const copiedNew = ref(false)
 
-const showReset = ref(false)
-const newToken = ref('')
-const resetting = ref(false)
-const resetMsg = ref<{ type: 'success' | 'error'; text: string } | null>(null)
-const copied = ref(false)
+// ===== 修改密码 =====
+const pwCurrent = ref('')
+const pwNew = ref('')
+const pwConfirm = ref('')
+const changingPw = ref(false)
+const pwMsg = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
+// ===== 设备 =====
 const devices = ref<DeviceInfo[]>([])
 const devicesLoading = ref(true)
 
@@ -58,33 +67,65 @@ async function fetchDevices() {
 
 function copyMasked() {
   navigator.clipboard?.writeText(tokenMasked.value).then(() => {
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1500)
+    copiedMasked.value = true
+    setTimeout(() => (copiedMasked.value = false), 1500)
   })
 }
 
-function openReset() {
-  newToken.value = ''
-  resetMsg.value = null
-  showReset.value = true
+function copyNewToken() {
+  navigator.clipboard?.writeText(rotatedToken.value).then(() => {
+    copiedNew.value = true
+    setTimeout(() => (copiedNew.value = false), 1500)
+  })
 }
 
-async function submitReset() {
-  resetMsg.value = null
-  if (newToken.value.trim().length < 6) {
-    resetMsg.value = { type: 'error', text: 'Token 至少需要 6 个字符' }
-    return
-  }
-  resetting.value = true
+async function doRotate() {
+  rotating.value = true
   try {
-    await api.updateToken(newToken.value.trim())
-    resetMsg.value = { type: 'success', text: 'Token 已更新，请同步到 ESP32 设备' }
-    showReset.value = false
+    const res = await api.rotateToken()
+    rotatedToken.value = res.data.token
+    showRotate.value = false
     await fetchToken()
   } catch (e: any) {
-    resetMsg.value = { type: 'error', text: e?.message || '更新失败' }
+    alert(e?.message || '轮换失败')
   } finally {
-    resetting.value = false
+    rotating.value = false
+  }
+}
+
+function dismissRotated() {
+  rotatedToken.value = ''
+}
+
+async function submitPassword() {
+  pwMsg.value = null
+  if (!pwCurrent.value) {
+    pwMsg.value = { type: 'error', text: '请输入当前密码' }
+    return
+  }
+  if (pwNew.value.length < 6) {
+    pwMsg.value = { type: 'error', text: '新密码至少 6 个字符' }
+    return
+  }
+  if (pwNew.value !== pwConfirm.value) {
+    pwMsg.value = { type: 'error', text: '两次输入的新密码不一致' }
+    return
+  }
+  if (pwNew.value === pwCurrent.value) {
+    pwMsg.value = { type: 'error', text: '新密码不能与当前密码相同' }
+    return
+  }
+  changingPw.value = true
+  try {
+    await api.changePassword(pwCurrent.value, pwNew.value)
+    pwMsg.value = { type: 'success', text: '密码修改成功，下次登录请使用新密码' }
+    pwCurrent.value = ''
+    pwNew.value = ''
+    pwConfirm.value = ''
+  } catch (e: any) {
+    pwMsg.value = { type: 'error', text: e?.message || '修改失败' }
+  } finally {
+    changingPw.value = false
   }
 }
 
@@ -127,7 +168,7 @@ onMounted(() => {
             title="复制"
             @click="copyMasked"
           >
-            <Check v-if="copied" :size="15" class="text-success" />
+            <Check v-if="copiedMasked" :size="15" class="text-success" />
             <Copy v-else :size="15" />
           </button>
         </div>
@@ -136,43 +177,117 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 重置表单 -->
-      <div v-if="showReset" class="mt-4 p-4 rounded-fluent border" style="border-color: var(--warning); background: var(--warning-bg)">
+      <!-- 轮换后的新 Token（明文，仅显示一次） -->
+      <div
+        v-if="rotatedToken"
+        class="mt-4 p-4 rounded-fluent border"
+        style="border-color: var(--success); background: var(--success-bg)"
+      >
+        <div class="flex items-center gap-2 mb-2 text-success">
+          <Check :size="16" />
+          <span class="text-[13px] font-medium">Token 已轮换，请立即复制保存（仅显示一次）</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <code class="flex-1 font-mono text-[14px] text-ink-1 tracking-wider break-all">
+            {{ rotatedToken }}
+          </code>
+          <button
+            class="shrink-0 w-8 h-8 rounded-fluent grid place-items-center text-ink-3 hover:bg-surface-hover transition-colors"
+            title="复制"
+            @click="copyNewToken"
+          >
+            <Check v-if="copiedNew" :size="15" class="text-success" />
+            <Copy v-else :size="15" />
+          </button>
+        </div>
+        <div class="mt-3 flex justify-end">
+          <FluentButton variant="standard" @click="dismissRotated">我已保存</FluentButton>
+        </div>
+      </div>
+
+      <!-- 轮换确认 -->
+      <div
+        v-else-if="showRotate"
+        class="mt-4 p-4 rounded-fluent border"
+        style="border-color: var(--warning); background: var(--warning-bg)"
+      >
         <div class="flex items-center gap-2 mb-3 text-warning">
           <AlertTriangle :size="16" />
-          <span class="text-[13px] font-medium">重置后旧 Token 立即失效，请同步更新到所有 ESP32 设备</span>
+          <span class="text-[13px] font-medium">
+            将随机生成新 Token，旧 Token 立即失效。请确认已准备好同步到所有 ESP32 设备
+          </span>
         </div>
-        <div class="flex items-end gap-3">
-          <FluentInput
-            v-model="newToken"
-            label="新 Token"
-            placeholder="至少 6 个字符"
-            class="flex-1"
-          />
-          <FluentButton variant="primary" :loading="resetting" @click="submitReset">
-            <Check :size="15" />
-            确认重置
+        <div class="flex items-center gap-3">
+          <FluentButton variant="primary" :loading="rotating" @click="doRotate">
+            <RefreshCw :size="15" />
+            确认轮换
           </FluentButton>
-          <FluentButton variant="standard" @click="showReset = false">取消</FluentButton>
+          <FluentButton variant="standard" @click="showRotate = false">取消</FluentButton>
         </div>
       </div>
 
       <div v-else class="mt-4">
-        <FluentButton variant="standard" @click="openReset">
+        <FluentButton variant="standard" @click="showRotate = true">
           <RefreshCw :size="15" />
-          重置 Token
+          轮换 Token
         </FluentButton>
       </div>
+    </div>
 
-      <div
-        v-if="resetMsg && !showReset"
-        class="mt-3 px-3 py-2 rounded-fluent text-[13px]"
-        :style="{
-          background: resetMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
-          color: resetMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
-        }"
-      >
-        {{ resetMsg.text }}
+    <!-- 修改密码 -->
+    <div class="fluent-card p-6 fade-up">
+      <div class="flex items-center gap-3 mb-5">
+        <span
+          class="w-10 h-10 rounded-lg grid place-items-center"
+          style="background: var(--accent-bg, var(--info-bg)); color: var(--accent, var(--info))"
+        >
+          <Lock :size="20" />
+        </span>
+        <div>
+          <h2 class="text-[15px] font-semibold text-ink-1">修改管理员密码</h2>
+          <p class="text-[12px] text-ink-4 mt-0.5">新密码以 bcrypt 哈希存储于数据库 users 表</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <FluentInput
+          v-model="pwCurrent"
+          type="password"
+          label="当前密码"
+          placeholder="输入当前密码"
+          autocomplete="current-password"
+        />
+        <FluentInput
+          v-model="pwNew"
+          type="password"
+          label="新密码"
+          placeholder="至少 6 个字符"
+          autocomplete="new-password"
+        />
+        <FluentInput
+          v-model="pwConfirm"
+          type="password"
+          label="确认新密码"
+          placeholder="再次输入新密码"
+          autocomplete="new-password"
+        />
+      </div>
+
+      <div class="mt-4 flex items-center gap-3">
+        <FluentButton variant="primary" :loading="changingPw" @click="submitPassword">
+          <Check :size="15" />
+          保存新密码
+        </FluentButton>
+        <div
+          v-if="pwMsg"
+          class="px-3 py-2 rounded-fluent text-[13px]"
+          :style="{
+            background: pwMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+            color: pwMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
+          }"
+        >
+          {{ pwMsg.text }}
+        </div>
       </div>
     </div>
 
@@ -258,7 +373,7 @@ onMounted(() => {
         </div>
       </div>
       <p class="mt-4 text-[12px] text-ink-4">
-        账号密码存于数据库 <code class="px-1 rounded bg-surface-hover">users</code> 表（bcrypt 哈希加密），修改密码请执行 <code class="px-1 rounded bg-surface-hover">schema.sql</code> 末尾的 UPDATE 语句
+        账号密码存于数据库 <code class="px-1 rounded bg-surface-hover">users</code> 表（bcrypt 哈希加密），可在上方「修改管理员密码」卡片中直接修改
       </p>
     </div>
   </div>
