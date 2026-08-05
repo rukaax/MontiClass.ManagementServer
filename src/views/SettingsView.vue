@@ -4,7 +4,6 @@ import {
   KeyRound,
   Cpu,
   ShieldCheck,
-  Copy,
   Check,
   RefreshCw,
   AlertTriangle,
@@ -26,8 +25,6 @@ const tokenLoading = ref(true)
 const showRotate = ref(false)
 const rotating = ref(false)
 const rotatedToken = ref('') // 轮换后的完整明文，仅显示一次
-const copiedMasked = ref(false)
-const copiedNew = ref(false)
 
 // ===== 修改密码 =====
 const pwCurrent = ref('')
@@ -63,20 +60,6 @@ async function fetchDevices() {
   } finally {
     devicesLoading.value = false
   }
-}
-
-function copyMasked() {
-  navigator.clipboard?.writeText(tokenMasked.value).then(() => {
-    copiedMasked.value = true
-    setTimeout(() => (copiedMasked.value = false), 1500)
-  })
-}
-
-function copyNewToken() {
-  navigator.clipboard?.writeText(rotatedToken.value).then(() => {
-    copiedNew.value = true
-    setTimeout(() => (copiedNew.value = false), 1500)
-  })
 }
 
 async function doRotate() {
@@ -160,17 +143,9 @@ onMounted(() => {
       <div class="space-y-3">
         <div class="flex items-center gap-3 p-3 rounded-fluent" style="background: var(--bg-card-2)">
           <span class="text-[13px] text-ink-3 w-20">当前 Token</span>
-          <code class="flex-1 font-mono text-[14px] text-ink-1 tracking-wider">
+          <code class="flex-1 font-mono text-[14px] text-ink-1 tracking-wider select-all">
             {{ tokenLoading ? '••••••••' : tokenMasked || '—' }}
           </code>
-          <button
-            class="w-8 h-8 rounded-fluent grid place-items-center text-ink-3 hover:bg-surface-hover transition-colors"
-            title="复制"
-            @click="copyMasked"
-          >
-            <Check v-if="copiedMasked" :size="15" class="text-success" />
-            <Copy v-else :size="15" />
-          </button>
         </div>
         <div class="text-[12px] text-ink-4">
           最后更新：{{ tokenUpdatedAt ? fmtDateTime(tokenUpdatedAt) : '—' }}
@@ -185,20 +160,12 @@ onMounted(() => {
       >
         <div class="flex items-center gap-2 mb-2 text-success">
           <Check :size="16" />
-          <span class="text-[13px] font-medium">Token 已轮换，请立即复制保存（仅显示一次）</span>
+          <span class="text-[13px] font-medium">Token 已轮换，请立即选中下方文本复制保存（仅显示一次）</span>
         </div>
         <div class="flex items-center gap-3">
-          <code class="flex-1 font-mono text-[14px] text-ink-1 tracking-wider break-all">
+          <code class="flex-1 font-mono text-[14px] text-ink-1 tracking-wider break-all select-all">
             {{ rotatedToken }}
           </code>
-          <button
-            class="shrink-0 w-8 h-8 rounded-fluent grid place-items-center text-ink-3 hover:bg-surface-hover transition-colors"
-            title="复制"
-            @click="copyNewToken"
-          >
-            <Check v-if="copiedNew" :size="15" class="text-success" />
-            <Copy v-else :size="15" />
-          </button>
         </div>
         <div class="mt-3 flex justify-end">
           <FluentButton variant="standard" @click="dismissRotated">我已保存</FluentButton>

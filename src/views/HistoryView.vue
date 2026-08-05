@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { Download, Search, ChevronLeft, ChevronRight, Inbox } from 'lucide-vue-next'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { Download, Search, ChevronLeft, ChevronRight, Inbox, Radio, Calendar } from 'lucide-vue-next'
 import { api, type ReportRow, type DeviceInfo } from '@/api/client'
 import FluentButton from '@/components/FluentButton.vue'
 import FluentSelect from '@/components/FluentSelect.vue'
 import FluentBadge from '@/components/FluentBadge.vue'
-import { fmtDateTime, fmtNum, toLocalInput } from '@/lib/format'
+import { fmtDateTime, fmtNum } from '@/lib/format'
 
 const devices = ref<DeviceInfo[]>([])
 const items = ref<ReportRow[]>([])
@@ -15,18 +15,10 @@ const size = ref(20)
 const loading = ref(false)
 
 const deviceId = ref('')
-const defaultStart = new Date(Date.now() - 24 * 3600 * 1000)
-const defaultEnd = new Date()
-const start = ref(toLocalInput(defaultStart))
-const end = ref(toLocalInput(defaultEnd))
+const date = ref('') // 空 = 实时模式（最新数据）
 
+const isRealtime = computed(() => !date.value)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
-
-function toIso(local: string): string | undefined {
-  if (!local) return undefined
-  const d = new Date(local)
-  return isNaN(d.getTime()) ? undefined : d.toISOString()
-}
 
 async function fetchDevices() {
   try {
@@ -37,29 +29,38 @@ async function fetchDevices() {
   }
 }
 
-async function search() {
-  page.value = 1
-  await load()
-}
-
 async function load() {
   loading.value = true
   try {
+    let startIso: string | undefined
+    let endIso: string | undefined
+    if (date.value) {
+      // 选中日期：当天 00:00 ~ 23:59:59
+      const s = new Date(`${date.value}T00:00:00`)
+      const e = new Date(`${date.value}T23:59:59`)
+      if (!isNaN(s.getTime())) startIso = s.toISOString()
+      if (!isNaN(e.getTime())) endIso = e.toISOString()
+    }
     const res = await api.history({
       deviceId: deviceId.value || undefined,
-      start: toIso(start.value),
-      end: toIso(end.value),
+      start: startIso,
+      end: endIso,
       page: page.value,
       size: size.value,
     })
     items.value = res.data.items
     total.value = res.data.total
-  } catch (e) {
+  } catch {
     items.value = []
     total.value = 0
   } finally {
     loading.value = false
   }
+}
+
+async function search() {
+  page.value = 1
+  await load()
 }
 
 function go(p: number) {
@@ -100,9 +101,15 @@ function exportCsv() {
   URL.revokeObjectURL(url)
 }
 
+// 每 10 秒自动刷新
+let timer: number | undefined
 onMounted(async () => {
   await fetchDevices()
   await load()
+  timer = window.setInterval(load, 10000)
+})
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
 })
 </script>
 
@@ -111,7 +118,7 @@ onMounted(async () => {
     <!-- 筛选栏 -->
     <div class="fluent-card p-4 fade-up">
       <div class="flex flex-wrap items-end gap-4">
-        <FluentSelect v-model="deviceId" label="设备" class="w-44">
+        <FluentSelect v-model="deviceId" label="设备" class="w-44" @update:modelValue="search">
           <option value="">全部设备</option>
           <option v-for="d in devices" :key="d.device_id" :value="d.device_id">
             {{ d.device_id }}
@@ -119,21 +126,16 @@ onMounted(async () => {
         </FluentSelect>
 
         <label class="block">
-          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">开始时间</span>
-          <input
-            v-model="start"
-            type="datetime-local"
-            class="h-9 px-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
-          />
-        </label>
-
-        <label class="block">
-          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">结束时间</span>
-          <input
-            v-model="end"
-            type="datetime-local"
-            class="h-9 px-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
-          />
+          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">日期</span>
+          <div class="relative">
+            <Calendar :size="14" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
+            <input
+              v-model="date"
+              type="date"
+              placeholder="不选=实时"
+              class="h-9 pl-8 pr-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
+            />
+          </div>
         </label>
 
         <FluentSelect v-model="size" label="每页" class="w-28" @update:modelValue="search">
@@ -151,6 +153,22 @@ onMounted(async () => {
             <Download :size="15" />
             导出 CSV
           </FluentButton>
+        </div>
+
+        <!-- 实时 / 历史 状态 -->
+        <div class="ml-auto flex items-center">
+          <FluentBadge v-if="isRealtime" status="success" dot>
+            <span class="flex items-center gap-1">
+              <Radio :size="12" class="animate-pulse" />
+              实时 · 每 10s 刷新
+            </span>
+          </FluentBadge>
+          <FluentBadge v-else status="info" dot>
+            <span class="flex items-center gap-1">
+              <Calendar :size="12" />
+              历史 · {{ date }}
+            </span>
+          </FluentBadge>
         </div>
       </div>
     </div>
