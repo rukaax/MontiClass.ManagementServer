@@ -5,6 +5,20 @@ export function readVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
+/** hex(#RRGGBB) → rgba 字符串，alpha 0-1。解析失败原样返回 */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '').trim()
+  if (h.length === 6) {
+    const r = parseInt(h.slice(0, 2), 16)
+    const g = parseInt(h.slice(2, 4), 16)
+    const b = parseInt(h.slice(4, 6), 16)
+    if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`
+    }
+  }
+  return hex
+}
+
 function axisBase() {
   return {
     axisLine: { lineStyle: { color: readVar('--stroke-strong') } },
@@ -21,6 +35,7 @@ export interface LineConfig {
   color?: string
   area?: boolean
   smooth?: boolean
+  zoom?: boolean
 }
 
 export function trendLineOption(cfg: LineConfig) {
@@ -42,19 +57,28 @@ export function trendLineOption(cfg: LineConfig) {
     },
     xAxis: { type: 'category', data: x, boundaryGap: false, ...axisBase() },
     yAxis: { type: 'value', ...axisBase() },
-    dataZoom: [
-      { type: 'inside', start: 0, end: 100 },
-      {
-        type: 'slider',
-        height: 18,
-        bottom: 12,
-        borderColor: 'transparent',
-        backgroundColor: readVar('--bg-hover'),
-        fillerColor: 'color-mix(in srgb, ' + color + ' 18%, transparent)',
-        handleStyle: { color },
-        textStyle: { color: readVar('--text-3') },
-      },
-    ],
+    dataZoom: cfg.zoom
+      ? [
+          {
+            type: 'inside',
+            start: 0,
+            end: 100,
+            moveOnMouseMove: false,
+            moveOnMouseWheel: true,
+            zoomOnMouseWheel: false,
+          },
+          {
+            type: 'slider',
+            height: 18,
+            bottom: 12,
+            borderColor: 'transparent',
+            backgroundColor: readVar('--bg-hover'),
+            fillerColor: hexToRgba(color, 0.18),
+            handleStyle: { color },
+            textStyle: { color: readVar('--text-3') },
+          },
+        ]
+      : undefined,
     series: [
       {
         name: cfg.name,
@@ -64,6 +88,9 @@ export function trendLineOption(cfg: LineConfig) {
         symbol: 'circle',
         symbolSize: 6,
         showSymbol: false,
+        sampling: 'lttb',
+        large: true,
+        largeThreshold: 500,
         lineStyle: { width: 2.5, color },
         itemStyle: { color },
         areaStyle: cfg.area
@@ -72,8 +99,8 @@ export function trendLineOption(cfg: LineConfig) {
                 type: 'linear',
                 x: 0, y: 0, x2: 0, y2: 1,
                 colorStops: [
-                  { offset: 0, color: `color-mix(in srgb, ${color} 28%, transparent)` },
-                  { offset: 1, color: `color-mix(in srgb, ${color} 2%, transparent)` },
+                  { offset: 0, color: hexToRgba(color, 0.28) },
+                { offset: 1, color: hexToRgba(color, 0.02) },
                 ],
               },
             }

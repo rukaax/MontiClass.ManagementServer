@@ -134,6 +134,7 @@ async function fetchTrend() {
       unit: meta.unit,
       color: meta.color,
       area: true,
+      zoom: true,
     })
   } catch (e) {
     /* ignore */
