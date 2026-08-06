@@ -6,6 +6,7 @@ export interface ReportPayload {
   light2_adc?: number | null      // 光敏2 ADC 原始值 0-4095
   aqi?: number | null
   temperature?: number | null
+  humidity?: number | null           // 相对湿度 % 0-100
   presence?: boolean | null
   reported_at?: string | null
 }
@@ -19,6 +20,7 @@ export interface ReportRow {
   light2_adc: number | null
   aqi: number | null
   temperature: number | null
+  humidity: number | null
   presence: boolean | null
   reported_at: string
   received_at: string

@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS device_reports (
     light2_adc   INTEGER,                       -- 光敏2 ADC 原始值 0-4095
     aqi          INTEGER,                       -- 空气质量指数 0-500
     temperature  NUMERIC(5,2),                  -- 温度 ℃
+    humidity     NUMERIC(5,2),                  -- 相对湿度 % 0-100
     presence     BOOLEAN,                       -- 是否有人
     reported_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -40,6 +41,7 @@ ALTER TABLE device_reports ALTER COLUMN light1 TYPE NUMERIC(5,2) USING light1::n
 ALTER TABLE device_reports ALTER COLUMN light2 TYPE NUMERIC(5,2) USING light2::numeric(5,2);
 ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light1_adc INTEGER;
 ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light2_adc INTEGER;
+ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS humidity NUMERIC(5,2);
 ALTER TABLE device_reports DROP COLUMN IF EXISTS speed;
 
 CREATE INDEX IF NOT EXISTS idx_reports_device_id   ON device_reports(device_id);

@@ -1,124 +1,318 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { GraduationCap, User, Lock, LogIn } from 'lucide-vue-next'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { Download, Search, ChevronLeft, ChevronRight, Inbox, Radio, Calendar } from 'lucide-vue-next'
+import { api, type ReportRow, type DeviceInfo } from '@/api/client'
 import FluentButton from '@/components/FluentButton.vue'
-import FluentInput from '@/components/FluentInput.vue'
+import FluentSelect from '@/components/FluentSelect.vue'
+import FluentBadge from '@/components/FluentBadge.vue'
+import { fmtDateTime, fmtNum } from '@/lib/format'
 
-const route = useRoute()
-const router = useRouter()
-const auth = useAuthStore()
-
-const username = ref('')
-const password = ref('')
+const devices = ref<DeviceInfo[]>([])
+const items = ref<ReportRow[]>([])
+const total = ref(0)
+const page = ref(1)
+const size = ref(20)
 const loading = ref(false)
-const error = ref('')
 
-async function submit() {
-  error.value = ''
-  if (!username.value || !password.value) {
-    error.value = '请输入账号和密码'
-    return
+const deviceId = ref('')
+const date = ref('') // 空 = 实时模式（最新数据）
+
+const isRealtime = computed(() => !date.value)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
+
+async function fetchDevices() {
+  try {
+    const res = await api.devices()
+    devices.value = res.data
+  } catch {
+    /* ignore */
   }
+}
+
+async function load() {
   loading.value = true
   try {
-    await auth.login(username.value.trim(), password.value)
-    const redirect = (route.query.redirect as string) || '/dashboard'
-    router.replace(redirect)
-  } catch (e: any) {
-    error.value = e?.message || '登录失败'
+    let startIso: string | undefined
+    let endIso: string | undefined
+    if (date.value) {
+      const s = new Date(`${date.value}T00:00:00`)
+      const e = new Date(`${date.value}T23:59:59`)
+      if (!isNaN(s.getTime())) startIso = s.toISOString()
+      if (!isNaN(e.getTime())) endIso = e.toISOString()
+    }
+    const res = await api.history({
+      deviceId: deviceId.value || undefined,
+      start: startIso,
+      end: endIso,
+      page: page.value,
+      size: size.value,
+    })
+    items.value = res.data.items
+    total.value = res.data.total
+  } catch {
+    items.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
+
+async function search() {
+  page.value = 1
+  await load()
+}
+
+function go(p: number) {
+  if (p < 1 || p > totalPages.value) return
+  page.value = p
+  load()
+}
+
+function aqiStatus(v: number | null) {
+  if (v == null) return 'neutral' as const
+  if (v <= 50) return 'success' as const
+  if (v <= 100) return 'warning' as const
+  return 'danger' as const
+}
+
+function exportCsv() {
+  const cols = ['上报时间', '设备ID', '光敏1(%)', '光敏2(%)', '光敏1 ADC', '光敏2 ADC', 'AQI', '温度(°C)', '湿度(%)', '是否有人']
+  const rows = items.value.map((r) => [
+    fmtDateTime(r.reported_at),
+    r.device_id,
+    r.light1 ?? '',
+    r.light2 ?? '',
+    r.light1_adc ?? '',
+    r.light2_adc ?? '',
+    r.aqi ?? '',
+    r.temperature ?? '',
+    r.humidity ?? '',
+    r.presence == null ? '' : r.presence ? '有人' : '无人',
+  ])
+  const csv = [cols, ...rows]
+    .map((line) => line.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `history_${Date.now()}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 每 10 秒自动刷新
+let timer: number | undefined
+onMounted(async () => {
+  await fetchDevices()
+  await load()
+  timer = window.setInterval(load, 10000)
+})
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <template>
-  <div class="min-h-screen mica-bg grid place-items-center p-6 relative overflow-hidden">
-    <!-- 装饰光晕 -->
-    <div
-      class="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-30 blur-3xl"
-      style="background: radial-gradient(circle, var(--fluent-primary), transparent 70%)"
-    />
-    <div
-      class="absolute -bottom-40 -right-24 w-[28rem] h-[28rem] rounded-full opacity-20 blur-3xl"
-      style="background: radial-gradient(circle, #107C10, transparent 70%)"
-    />
+  <div class="space-y-4 sm:space-y-5">
+    <!-- 筛选栏（移动端网格堆叠） -->
+    <div class="fluent-card p-4 fade-up">
+      <div class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-4">
+        <FluentSelect v-model="deviceId" label="设备" class="w-full sm:w-44" @update:modelValue="search">
+          <option value="">全部设备</option>
+          <option v-for="d in devices" :key="d.device_id" :value="d.device_id">
+            {{ d.device_id }}
+          </option>
+        </FluentSelect>
 
-    <div class="relative w-full max-w-md fade-up">
-      <div class="text-center mb-7">
-        <div
-          class="inline-grid place-items-center w-14 h-14 rounded-2xl text-white shadow-f16 mb-4"
-          style="background: linear-gradient(135deg, var(--fluent-primary), #005a9e)"
-        >
-          <GraduationCap :size="28" />
+        <label class="block">
+          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">日期</span>
+          <div class="relative">
+            <Calendar :size="14" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
+            <input
+              v-model="date"
+              type="date"
+              placeholder="不选=实时"
+              class="w-full h-9 pl-8 pr-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
+            />
+          </div>
+        </label>
+
+        <FluentSelect v-model="size" label="每页" class="w-full sm:w-28" @update:modelValue="search">
+          <option :value="20">20 条</option>
+          <option :value="50">50 条</option>
+          <option :value="100">100 条</option>
+        </FluentSelect>
+
+        <div class="col-span-2 sm:col-span-1 flex gap-2 sm:items-end">
+          <FluentButton variant="primary" @click="search">
+            <Search :size="15" />
+            查询
+          </FluentButton>
+          <FluentButton variant="standard" @click="exportCsv" :disabled="!items.length">
+            <Download :size="15" />
+            导出
+          </FluentButton>
         </div>
-        <h1 class="text-2xl font-semibold text-ink-1">智能教室环境监测</h1>
-        <p class="text-sm text-ink-3 mt-1">ESP32S3 · 管理控制台</p>
+
+        <div class="col-span-2 sm:ml-auto flex items-center">
+          <FluentBadge v-if="isRealtime" status="success" dot>
+            <span class="flex items-center gap-1">
+              <Radio :size="12" class="animate-pulse" />
+              实时 · 每 10s 刷新
+            </span>
+          </FluentBadge>
+          <FluentBadge v-else status="info" dot>
+            <span class="flex items-center gap-1">
+              <Calendar :size="12" />
+              历史 · {{ date }}
+            </span>
+          </FluentBadge>
+        </div>
       </div>
+    </div>
 
-      <form
-        @submit.prevent="submit"
-        class="acrylic-strong rounded-fluent-xl border p-7 shadow-f16"
-        style="border-color: var(--stroke)"
-      >
-        <div class="space-y-4">
-          <div>
-            <label class="block mb-1.5 text-[13px] font-medium text-ink-2">账号</label>
-            <div class="relative">
-              <User :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
-              <FluentInput
-                v-model="username"
-                placeholder="请输入管理员账号"
-                autocomplete="username"
-                class="block"
-              />
-            </div>
-          </div>
-          <div>
-            <label class="block mb-1.5 text-[13px] font-medium text-ink-2">密码</label>
-            <div class="relative">
-              <Lock :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
-              <FluentInput
-                v-model="password"
-                type="password"
-                placeholder="请输入密码"
-                autocomplete="current-password"
-              />
-            </div>
-          </div>
+    <!-- 移动端：卡片列表 -->
+    <div class="fluent-card overflow-hidden fade-up sm:hidden">
+      <div v-if="loading" class="py-16 text-center text-ink-3">
+        <div class="flex flex-col items-center gap-3">
+          <div class="spinner" />
+          <span>加载中…</span>
         </div>
-
+      </div>
+      <div v-else-if="!items.length" class="py-16 text-center text-ink-3">
+        <div class="flex flex-col items-center gap-3">
+          <Inbox :size="32" class="text-ink-4" />
+          <span>暂无数据</span>
+        </div>
+      </div>
+      <div v-else>
         <div
-          v-if="error"
-          class="mt-4 px-3 py-2 rounded-fluent text-[13px] text-danger"
-          style="background: var(--danger-bg)"
+          v-for="r in items"
+          :key="r.id"
+          class="p-3 border-b"
+          style="border-color: var(--stroke)"
         >
-          {{ error }}
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[12px] text-ink-4 tabular-nums">{{ fmtDateTime(r.reported_at) }}</span>
+            <FluentBadge :status="r.presence ? 'info' : 'neutral'" dot>
+              {{ r.presence == null ? '—' : r.presence ? '有人' : '无人' }}
+            </FluentBadge>
+          </div>
+          <div class="mt-1 text-[13px] font-medium text-ink-1">{{ r.device_id }}</div>
+          <div class="grid grid-cols-3 gap-2 mt-2">
+            <div>
+              <div class="text-[11px] text-ink-4">光敏 1</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.light1) }}%</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">光敏 2</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.light2) }}%</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">AQI</div>
+              <div class="text-[13px] tabular-nums" :style="{ color: r.aqi == null ? '' : 'var(--text-1)' }">
+                <FluentBadge :status="aqiStatus(r.aqi)">{{ r.aqi ?? '—' }}</FluentBadge>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">温度</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.temperature) }}°</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">湿度</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.humidity) }}%</div>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <FluentButton
-          variant="primary"
-          size="lg"
-          type="submit"
-          :loading="loading"
-          class="w-full mt-6"
+    <!-- 桌面端：表格 -->
+    <div class="fluent-card overflow-hidden fade-up hidden sm:block">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-[12px] text-ink-3 border-b" style="background: var(--bg-card-2)">
+              <th class="px-4 py-3 font-medium">上报时间</th>
+              <th class="px-4 py-3 font-medium">设备 ID</th>
+              <th class="px-4 py-3 font-medium">光敏 1</th>
+              <th class="px-4 py-3 font-medium">光敏 2</th>
+              <th class="px-4 py-3 font-medium hidden md:table-cell">光敏 1 ADC</th>
+              <th class="px-4 py-3 font-medium hidden md:table-cell">光敏 2 ADC</th>
+              <th class="px-4 py-3 font-medium">AQI</th>
+              <th class="px-4 py-3 font-medium">温度</th>
+              <th class="px-4 py-3 font-medium">湿度</th>
+              <th class="px-4 py-3 font-medium">是否有人</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="10" class="px-4 py-16 text-center text-ink-3">
+                <div class="flex flex-col items-center gap-3">
+                  <div class="spinner" />
+                  <span>加载中…</span>
+                </div>
+              </td>
+            </tr>
+            <tr v-else-if="!items.length">
+              <td colspan="10" class="px-4 py-16 text-center text-ink-3">
+                <div class="flex flex-col items-center gap-3">
+                  <Inbox :size="32" class="text-ink-4" />
+                  <span>暂无数据</span>
+                </div>
+              </td>
+            </tr>
+            <tr
+              v-for="r in items"
+              :key="r.id"
+              class="border-b transition-colors hover:bg-surface-hover"
+              style="border-color: var(--stroke)"
+            >
+              <td class="px-4 py-3 text-ink-1 tabular-nums">{{ fmtDateTime(r.reported_at) }}</td>
+              <td class="px-4 py-3 text-ink-2">{{ r.device_id }}</td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.light1) }} %</td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.light2) }} %</td>
+              <td class="px-4 py-3 tabular-nums text-ink-3 hidden md:table-cell">{{ r.light1_adc ?? '—' }}</td>
+              <td class="px-4 py-3 tabular-nums text-ink-3 hidden md:table-cell">{{ r.light2_adc ?? '—' }}</td>
+              <td class="px-4 py-3">
+                <FluentBadge :status="aqiStatus(r.aqi)">{{ r.aqi ?? '—' }}</FluentBadge>
+              </td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.temperature) }} °C</td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.humidity) }} %</td>
+              <td class="px-4 py-3">
+                <FluentBadge :status="r.presence ? 'info' : 'neutral'" dot>
+                  {{ r.presence == null ? '—' : r.presence ? '有人' : '无人' }}
+                </FluentBadge>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="fluent-card flex items-center justify-between px-4 py-3">
+      <span class="text-[13px] text-ink-3">
+        共 <span class="font-medium text-ink-1">{{ total }}</span> 条 · 第
+        <span class="font-medium text-ink-1">{{ page }}</span> / {{ totalPages }} 页
+      </span>
+      <div class="flex gap-1">
+        <button
+          class="w-8 h-8 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          :disabled="page <= 1"
+          @click="go(page - 1)"
         >
-          <LogIn :size="17" />
-          登 录
-        </FluentButton>
-
-        <p class="mt-5 text-center text-[12px] text-ink-4">
-          账号密码存于数据库，已加密存储
-        </p>
-      </form>
+          <ChevronLeft :size="16" />
+        </button>
+        <button
+          class="w-8 h-8 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          :disabled="page >= totalPages"
+          @click="go(page + 1)"
+        >
+          <ChevronRight :size="16" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-:deep(input) {
-  padding-left: 2.25rem !important;
-}
-</style>

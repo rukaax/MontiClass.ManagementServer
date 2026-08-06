@@ -62,6 +62,10 @@ async function fetchDevices() {
   }
 }
 
+function isOnlineAt(lastSeen: string) {
+  return Date.now() - new Date(lastSeen).getTime() < 90_000
+}
+
 async function doRotate() {
   rotating.value = true
   try {
@@ -121,7 +125,7 @@ onMounted(() => {
 <template>
   <div class="space-y-5 max-w-4xl">
     <!-- Token 配置 -->
-    <div class="fluent-card p-6 fade-up">
+    <div class="fluent-card p-4 sm:p-6 fade-up">
       <div class="flex items-start justify-between mb-5">
         <div class="flex items-center gap-3">
           <span
@@ -141,9 +145,9 @@ onMounted(() => {
       </div>
 
       <div class="space-y-3">
-        <div class="flex items-center gap-3 p-3 rounded-fluent" style="background: var(--bg-card-2)">
-          <span class="text-[13px] text-ink-3 w-20">当前 Token</span>
-          <code class="flex-1 font-mono text-[14px] text-ink-1 tracking-wider select-all">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 p-3 rounded-fluent" style="background: var(--bg-card-2)">
+          <span class="text-[12px] text-ink-4 sm:text-[13px] sm:text-ink-3 sm:w-20">当前 Token</span>
+          <code class="font-mono text-[13px] sm:text-[14px] text-ink-1 tracking-wider select-all break-all">
             {{ tokenLoading ? '••••••••' : tokenMasked || '—' }}
           </code>
         </div>
@@ -202,7 +206,7 @@ onMounted(() => {
     </div>
 
     <!-- 修改密码 -->
-    <div class="fluent-card p-6 fade-up">
+    <div class="fluent-card p-4 sm:p-6 fade-up">
       <div class="flex items-center gap-3 mb-5">
         <span
           class="w-10 h-10 rounded-lg grid place-items-center"
@@ -259,7 +263,7 @@ onMounted(() => {
     </div>
 
     <!-- 设备列表 -->
-    <div class="fluent-card p-6 fade-up">
+    <div class="fluent-card p-4 sm:p-6 fade-up">
       <div class="flex items-center gap-3 mb-5">
         <span
           class="w-10 h-10 rounded-lg grid place-items-center"
@@ -273,7 +277,35 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <!-- 移动端：设备卡片 -->
+      <div class="sm:hidden">
+        <div v-if="devicesLoading" class="py-10 text-center text-ink-3">
+          <div class="spinner mx-auto" />
+        </div>
+        <div v-else-if="!devices.length" class="py-10 text-center text-ink-4">暂无设备</div>
+        <div v-else>
+          <div
+            v-for="d in devices"
+            :key="d.device_id"
+            class="p-3 border-b"
+            style="border-color: var(--stroke)"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[14px] font-medium text-ink-1">{{ d.device_id }}</span>
+              <FluentBadge :status="isOnlineAt(d.last_seen) ? 'success' : 'neutral'" dot>
+                {{ isOnlineAt(d.last_seen) ? '在线' : '离线' }}
+              </FluentBadge>
+            </div>
+            <div class="mt-1.5 flex items-center justify-between text-[12px] text-ink-3">
+              <span>{{ timeAgo(d.last_seen) }}</span>
+              <span class="tabular-nums">{{ d.count }} 次上报</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 桌面端：表格 -->
+      <div class="overflow-x-auto hidden sm:block">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-[12px] text-ink-3 border-b" style="background: var(--bg-card-2)">
@@ -319,7 +351,7 @@ onMounted(() => {
     </div>
 
     <!-- 账号信息 -->
-    <div class="fluent-card p-6 fade-up">
+    <div class="fluent-card p-4 sm:p-6 fade-up">
       <div class="flex items-center gap-3 mb-4">
         <span
           class="w-10 h-10 rounded-lg grid place-items-center"

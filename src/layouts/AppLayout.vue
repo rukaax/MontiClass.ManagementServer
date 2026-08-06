@@ -22,9 +22,9 @@ const ui = useUiStore()
 
 const nav = [
   { name: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
-  { name: 'history', label: '历史数据', icon: History },
-  { name: 'charts', label: '图表分析', icon: BarChart3 },
-  { name: 'settings', label: '系统设置', icon: SettingsIcon },
+  { name: 'history', label: '历史', icon: History },
+  { name: 'charts', label: '图表', icon: BarChart3 },
+  { name: 'settings', label: '设置', icon: SettingsIcon },
 ]
 
 const title = computed(() => {
@@ -40,9 +40,9 @@ function logout() {
 
 <template>
   <div class="flex h-screen mica-bg overflow-hidden">
-    <!-- 侧边导航（亚克力） -->
+    <!-- 侧边导航（桌面） -->
     <aside
-      class="acrylic w-64 shrink-0 border-r border-stroke flex flex-col"
+      class="hidden md:flex acrylic w-64 shrink-0 border-r border-stroke flex-col"
       style="border-color: var(--stroke)"
     >
       <div class="h-14 flex items-center gap-2.5 px-5 border-b" style="border-color: var(--stroke)">
@@ -91,14 +91,22 @@ function logout() {
     <div class="flex-1 flex flex-col min-w-0">
       <!-- 顶部命令栏 -->
       <header
-        class="acrylic h-14 shrink-0 border-b flex items-center gap-4 px-6"
+        class="acrylic h-14 shrink-0 border-b flex items-center gap-3 px-4 md:gap-4 md:px-6"
         style="border-color: var(--stroke)"
       >
-        <h1 class="text-[15px] font-semibold text-ink-1">{{ title }}</h1>
+        <div class="flex items-center gap-2 md:hidden">
+          <div
+            class="w-7 h-7 rounded-md grid place-items-center text-white"
+            style="background: linear-gradient(135deg, var(--fluent-primary), #005a9e)"
+          >
+            <GraduationCap :size="16" />
+          </div>
+        </div>
+        <h1 class="text-[15px] font-semibold text-ink-1 truncate">{{ title }}</h1>
         <div class="flex-1" />
 
         <button
-          class="w-9 h-9 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover transition-colors"
+          class="w-9 h-9 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover transition-colors shrink-0"
           :title="ui.isDark ? '切换到浅色' : '切换到深色'"
           @click="ui.toggle()"
         >
@@ -106,29 +114,29 @@ function logout() {
           <Moon v-else :size="18" />
         </button>
 
-        <div class="h-6 w-px" style="background: var(--stroke-strong)" />
+        <div class="hidden sm:block h-6 w-px" style="background: var(--stroke-strong)" />
 
         <div class="flex items-center gap-2.5">
           <div
-            class="w-8 h-8 rounded-full grid place-items-center text-white text-[13px] font-semibold"
+            class="w-8 h-8 rounded-full grid place-items-center text-white text-[13px] font-semibold shrink-0"
             style="background: linear-gradient(135deg, var(--fluent-primary), #005a9e)"
           >
             {{ (auth.username || 'A').slice(0, 1).toUpperCase() }}
           </div>
-          <div class="leading-tight">
+          <div class="hidden sm:block leading-tight">
             <div class="text-[13px] font-medium text-ink-1">{{ auth.username || 'admin' }}</div>
             <div class="text-[11px] text-ink-4">管理员</div>
           </div>
         </div>
 
-        <FluentButton variant="subtle" size="sm" @click="logout">
+        <FluentButton variant="subtle" size="sm" @click="logout" class="shrink-0">
           <LogOut :size="15" />
-          退出
+          <span class="hidden sm:inline">退出</span>
         </FluentButton>
       </header>
 
       <!-- 内容 -->
-      <main class="flex-1 overflow-auto p-6">
+      <main class="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
             <component :is="Component" />
@@ -136,6 +144,27 @@ function logout() {
         </router-view>
       </main>
     </div>
+
+    <!-- 底部导航（移动端） -->
+    <nav
+      class="md:hidden fixed bottom-0 inset-x-0 acrylic border-t flex items-stretch h-14 z-50"
+      style="border-color: var(--stroke)"
+    >
+      <router-link
+        v-for="item in nav"
+        :key="item.name"
+        :to="{ name: item.name }"
+        class="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] transition-colors"
+        :class="
+          route.name === item.name
+            ? 'text-fluent-primary font-semibold'
+            : 'text-ink-3 hover:text-ink-1'
+        "
+      >
+        <component :is="item.icon" :size="20" />
+        <span>{{ item.label }}</span>
+      </router-link>
+    </nav>
   </div>
 </template>
 

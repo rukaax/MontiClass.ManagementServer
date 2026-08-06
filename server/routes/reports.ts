@@ -34,6 +34,7 @@ router.post(
       light2_adc: body.light2_adc != null ? Number(body.light2_adc) : null,
       aqi: body.aqi != null ? Number(body.aqi) : null,
       temperature: body.temperature != null ? Number(body.temperature) : null,
+      humidity: body.humidity != null ? Number(body.humidity) : null,
       presence: body.presence == null ? null : Boolean(body.presence),
       reported_at: body.reported_at || null,
     }

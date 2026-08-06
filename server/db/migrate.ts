@@ -20,6 +20,7 @@ export async function migrate(): Promise<void> {
         light2_adc   INTEGER,
         aqi          INTEGER,
         temperature  NUMERIC(5,2),
+        humidity     NUMERIC(5,2),
         presence     BOOLEAN,
         reported_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
         received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -37,6 +38,9 @@ export async function migrate(): Promise<void> {
     )
     await client.query(
       `ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS light2_adc INTEGER;`,
+    )
+    await client.query(
+      `ALTER TABLE device_reports ADD COLUMN IF NOT EXISTS humidity NUMERIC(5,2);`,
     )
     await client.query(
       `ALTER TABLE device_reports DROP COLUMN IF EXISTS speed;`,

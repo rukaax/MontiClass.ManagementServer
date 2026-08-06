@@ -106,15 +106,15 @@ onMounted(async () => {
   <div class="space-y-5">
     <!-- 控制栏（精简） -->
     <div class="fluent-card p-4 fade-up">
-      <div class="flex flex-wrap items-end gap-4">
-        <FluentSelect v-model="deviceId" label="设备" class="w-40" @update:modelValue="load">
+      <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+        <FluentSelect v-model="deviceId" label="设备" class="w-full sm:w-40" @update:modelValue="load">
           <option value="">全部设备</option>
           <option v-for="d in devices" :key="d.device_id" :value="d.device_id">
             {{ d.device_id }}
           </option>
         </FluentSelect>
 
-        <div class="flex items-end gap-1.5">
+        <div class="flex flex-wrap items-end gap-1.5">
           <span class="block mb-1.5 text-[13px] font-medium text-ink-2 mr-1">时间</span>
           <FluentButton size="sm" :variant="preset === '24h' ? 'primary' : 'standard'" @click="applyPreset('24h')">
             近 24h
@@ -129,8 +129,8 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- 6 个指标小图表网格 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+    <!-- 6 个指标小图表网格（一行俩） -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div
         v-for="[key, m] in metricEntries"
         :key="key"

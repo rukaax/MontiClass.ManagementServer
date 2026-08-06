@@ -35,7 +35,6 @@ async function load() {
     let startIso: string | undefined
     let endIso: string | undefined
     if (date.value) {
-      // 选中日期：当天 00:00 ~ 23:59:59
       const s = new Date(`${date.value}T00:00:00`)
       const e = new Date(`${date.value}T23:59:59`)
       if (!isNaN(s.getTime())) startIso = s.toISOString()
@@ -77,7 +76,7 @@ function aqiStatus(v: number | null) {
 }
 
 function exportCsv() {
-  const cols = ['上报时间', '设备ID', '光敏1(%)', '光敏2(%)', '光敏1 ADC', '光敏2 ADC', 'AQI', '温度(°C)', '是否有人']
+  const cols = ['上报时间', '设备ID', '光敏1(%)', '光敏2(%)', '光敏1 ADC', '光敏2 ADC', 'AQI', '温度(°C)', '湿度(%)', '是否有人']
   const rows = items.value.map((r) => [
     fmtDateTime(r.reported_at),
     r.device_id,
@@ -87,6 +86,7 @@ function exportCsv() {
     r.light2_adc ?? '',
     r.aqi ?? '',
     r.temperature ?? '',
+    r.humidity ?? '',
     r.presence == null ? '' : r.presence ? '有人' : '无人',
   ])
   const csv = [cols, ...rows]
@@ -114,11 +114,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="space-y-5">
-    <!-- 筛选栏 -->
+  <div class="space-y-4 sm:space-y-5">
+    <!-- 筛选栏（移动端网格堆叠） -->
     <div class="fluent-card p-4 fade-up">
-      <div class="flex flex-wrap items-end gap-4">
-        <FluentSelect v-model="deviceId" label="设备" class="w-44" @update:modelValue="search">
+      <div class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-4">
+        <FluentSelect v-model="deviceId" label="设备" class="w-full sm:w-44" @update:modelValue="search">
           <option value="">全部设备</option>
           <option v-for="d in devices" :key="d.device_id" :value="d.device_id">
             {{ d.device_id }}
@@ -133,30 +133,29 @@ onUnmounted(() => {
               v-model="date"
               type="date"
               placeholder="不选=实时"
-              class="h-9 pl-8 pr-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
+              class="w-full h-9 pl-8 pr-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
             />
           </div>
         </label>
 
-        <FluentSelect v-model="size" label="每页" class="w-28" @update:modelValue="search">
+        <FluentSelect v-model="size" label="每页" class="w-full sm:w-28" @update:modelValue="search">
           <option :value="20">20 条</option>
           <option :value="50">50 条</option>
           <option :value="100">100 条</option>
         </FluentSelect>
 
-        <div class="flex gap-2">
+        <div class="col-span-2 sm:col-span-1 flex gap-2 sm:items-end">
           <FluentButton variant="primary" @click="search">
             <Search :size="15" />
             查询
           </FluentButton>
           <FluentButton variant="standard" @click="exportCsv" :disabled="!items.length">
             <Download :size="15" />
-            导出 CSV
+            导出
           </FluentButton>
         </div>
 
-        <!-- 实时 / 历史 状态 -->
-        <div class="ml-auto flex items-center">
+        <div class="col-span-2 sm:ml-auto flex items-center">
           <FluentBadge v-if="isRealtime" status="success" dot>
             <span class="flex items-center gap-1">
               <Radio :size="12" class="animate-pulse" />
@@ -173,8 +172,64 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <div class="fluent-card overflow-hidden fade-up">
+    <!-- 移动端：卡片列表 -->
+    <div class="fluent-card overflow-hidden fade-up sm:hidden">
+      <div v-if="loading" class="py-16 text-center text-ink-3">
+        <div class="flex flex-col items-center gap-3">
+          <div class="spinner" />
+          <span>加载中…</span>
+        </div>
+      </div>
+      <div v-else-if="!items.length" class="py-16 text-center text-ink-3">
+        <div class="flex flex-col items-center gap-3">
+          <Inbox :size="32" class="text-ink-4" />
+          <span>暂无数据</span>
+        </div>
+      </div>
+      <div v-else>
+        <div
+          v-for="r in items"
+          :key="r.id"
+          class="p-3 border-b"
+          style="border-color: var(--stroke)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[12px] text-ink-4 tabular-nums">{{ fmtDateTime(r.reported_at) }}</span>
+            <FluentBadge :status="r.presence ? 'info' : 'neutral'" dot>
+              {{ r.presence == null ? '—' : r.presence ? '有人' : '无人' }}
+            </FluentBadge>
+          </div>
+          <div class="mt-1 text-[13px] font-medium text-ink-1">{{ r.device_id }}</div>
+          <div class="grid grid-cols-3 gap-2 mt-2">
+            <div>
+              <div class="text-[11px] text-ink-4">光敏1</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.light1) }}%</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">光敏2</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.light2) }}%</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">AQI</div>
+              <div class="text-[13px] tabular-nums" :style="{ color: r.aqi == null ? '' : 'var(--text-1)' }">
+                <FluentBadge :status="aqiStatus(r.aqi)">{{ r.aqi ?? '—' }}</FluentBadge>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">温度</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.temperature) }}°</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-ink-4">湿度</div>
+              <div class="text-[13px] text-ink-1 tabular-nums">{{ fmtNum(r.humidity) }}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 桌面端：表格 -->
+    <div class="fluent-card overflow-hidden fade-up hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
@@ -183,16 +238,17 @@ onUnmounted(() => {
               <th class="px-4 py-3 font-medium">设备 ID</th>
               <th class="px-4 py-3 font-medium">光敏 1</th>
               <th class="px-4 py-3 font-medium">光敏 2</th>
-              <th class="px-4 py-3 font-medium">光敏1 ADC</th>
-              <th class="px-4 py-3 font-medium">光敏2 ADC</th>
+              <th class="px-4 py-3 font-medium hidden md:table-cell">光敏1 ADC</th>
+              <th class="px-4 py-3 font-medium hidden md:table-cell">光敏2 ADC</th>
               <th class="px-4 py-3 font-medium">AQI</th>
               <th class="px-4 py-3 font-medium">温度</th>
+              <th class="px-4 py-3 font-medium">湿度</th>
               <th class="px-4 py-3 font-medium">是否有人</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="9" class="px-4 py-16 text-center text-ink-3">
+              <td colspan="10" class="px-4 py-16 text-center text-ink-3">
                 <div class="flex flex-col items-center gap-3">
                   <div class="spinner" />
                   <span>加载中…</span>
@@ -200,7 +256,7 @@ onUnmounted(() => {
               </td>
             </tr>
             <tr v-else-if="!items.length">
-              <td colspan="9" class="px-4 py-16 text-center text-ink-3">
+              <td colspan="10" class="px-4 py-16 text-center text-ink-3">
                 <div class="flex flex-col items-center gap-3">
                   <Inbox :size="32" class="text-ink-4" />
                   <span>暂无数据</span>
@@ -217,12 +273,13 @@ onUnmounted(() => {
               <td class="px-4 py-3 text-ink-2">{{ r.device_id }}</td>
               <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.light1) }} %</td>
               <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.light2) }} %</td>
-              <td class="px-4 py-3 tabular-nums text-ink-3">{{ r.light1_adc ?? '—' }}</td>
-              <td class="px-4 py-3 tabular-nums text-ink-3">{{ r.light2_adc ?? '—' }}</td>
+              <td class="px-4 py-3 tabular-nums text-ink-3 hidden md:table-cell">{{ r.light1_adc ?? '—' }}</td>
+              <td class="px-4 py-3 tabular-nums text-ink-3 hidden md:table-cell">{{ r.light2_adc ?? '—' }}</td>
               <td class="px-4 py-3">
                 <FluentBadge :status="aqiStatus(r.aqi)">{{ r.aqi ?? '—' }}</FluentBadge>
               </td>
               <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.temperature) }} °C</td>
+              <td class="px-4 py-3 tabular-nums text-ink-2">{{ fmtNum(r.humidity) }} %</td>
               <td class="px-4 py-3">
                 <FluentBadge :status="r.presence ? 'info' : 'neutral'" dot>
                   {{ r.presence == null ? '—' : r.presence ? '有人' : '无人' }}
@@ -232,29 +289,29 @@ onUnmounted(() => {
           </tbody>
         </table>
       </div>
+    </div>
 
-      <!-- 分页 -->
-      <div class="flex items-center justify-between px-4 py-3 border-t" style="border-color: var(--stroke)">
-        <span class="text-[13px] text-ink-3">
-          共 <span class="font-medium text-ink-1">{{ total }}</span> 条 · 第
-          <span class="font-medium text-ink-1">{{ page }}</span> / {{ totalPages }} 页
-        </span>
-        <div class="flex gap-1">
-          <button
-            class="w-8 h-8 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-            :disabled="page <= 1"
-            @click="go(page - 1)"
-          >
-            <ChevronLeft :size="16" />
-          </button>
-          <button
-            class="w-8 h-8 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-            :disabled="page >= totalPages"
-            @click="go(page + 1)"
-          >
-            <ChevronRight :size="16" />
-          </button>
-        </div>
+    <!-- 分页 -->
+    <div class="fluent-card flex items-center justify-between px-4 py-3">
+      <span class="text-[13px] text-ink-3">
+        共 <span class="font-medium text-ink-1">{{ total }}</span> 条 · 第
+        <span class="font-medium text-ink-1">{{ page }}</span> / {{ totalPages }} 页
+      </span>
+      <div class="flex gap-1">
+        <button
+          class="w-8 h-8 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          :disabled="page <= 1"
+          @click="go(page - 1)"
+        >
+          <ChevronLeft :size="16" />
+        </button>
+        <button
+          class="w-8 h-8 rounded-fluent grid place-items-center text-ink-2 hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          :disabled="page >= totalPages"
+          @click="go(page + 1)"
+        >
+          <ChevronRight :size="16" />
+        </button>
       </div>
     </div>
   </div>

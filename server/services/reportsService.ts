@@ -8,6 +8,7 @@ const NUMERIC_METRICS = [
   'light2_adc',
   'aqi',
   'temperature',
+  'humidity',
 ] as const
 type NumericMetric = (typeof NUMERIC_METRICS)[number]
 
@@ -17,8 +18,8 @@ export async function insertReport(
   const reportedAt = p.reported_at ? new Date(p.reported_at) : new Date()
   const { rows } = await pool.query(
     `INSERT INTO device_reports
-       (device_id, light1, light2, light1_adc, light2_adc, aqi, temperature, presence, reported_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       (device_id, light1, light2, light1_adc, light2_adc, aqi, temperature, humidity, presence, reported_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      RETURNING id, reported_at, received_at`,
     [
       p.device_id,
@@ -28,6 +29,7 @@ export async function insertReport(
       p.light2_adc ?? null,
       p.aqi ?? null,
       p.temperature ?? null,
+      p.humidity ?? null,
       p.presence ?? null,
       reportedAt,
     ],
@@ -43,7 +45,7 @@ export async function getLatest(deviceId?: string): Promise<ReportRow | null> {
     where = 'WHERE device_id = $1'
   }
   const { rows } = await pool.query(
-    `SELECT device_id, light1, light2, light1_adc, light2_adc, aqi, temperature, presence,
+    `SELECT device_id, light1, light2, light1_adc, light2_adc, aqi, temperature, humidity, presence,
             reported_at, received_at
      FROM device_reports ${where}
      ORDER BY reported_at DESC LIMIT 1`,
@@ -89,7 +91,7 @@ export async function getHistory(opts: HistoryOptions) {
 
   const listParams = [...params, size, offset]
   const { rows } = await pool.query<ReportRow>(
-    `SELECT id, device_id, light1, light2, light1_adc, light2_adc, aqi, temperature, presence,
+    `SELECT id, device_id, light1, light2, light1_adc, light2_adc, aqi, temperature, humidity, presence,
             reported_at, received_at
      FROM device_reports ${where}
      ORDER BY reported_at DESC

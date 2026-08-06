@@ -7,6 +7,7 @@ export interface ReportRow {
   light2_adc: number | null
   aqi: number | null
   temperature: number | null
+  humidity: number | null
   presence: boolean | null
   reported_at: string
   received_at: string

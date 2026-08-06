@@ -136,4 +136,5 @@ export const METRIC_META: Record<string, { label: string; unit: string; color: s
   light2_adc: { label: '光敏 2 ADC', unit: 'ADC', color: '#B95010' },
   aqi: { label: '空气质量指数', unit: 'AQI', color: '#0078D4' },
   temperature: { label: '温度', unit: '°C', color: '#D13438' },
+  humidity: { label: '湿度', unit: '%', color: '#00B7C3' },
 }

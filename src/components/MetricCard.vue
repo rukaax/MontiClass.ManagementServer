@@ -32,7 +32,7 @@ function onMove(e: MouseEvent) {
 
 <template>
   <div
-    class="reveal fluent-card hoverable p-5 fade-up flex flex-col gap-3"
+    class="reveal fluent-card hoverable p-4 sm:p-5 fade-up flex flex-col gap-3"
     @mousemove="onMove"
   >
     <div class="flex items-center justify-between">
@@ -48,7 +48,7 @@ function onMove(e: MouseEvent) {
 
     <div v-if="loading" class="h-9 w-24 rounded bg-surface-hover animate-pulse" />
     <div v-else class="flex items-baseline gap-1.5">
-      <span class="text-[32px] font-semibold leading-none text-ink-1 tabular-nums">
+      <span class="text-[26px] sm:text-[32px] font-semibold leading-none text-ink-1 tabular-nums">
         {{ value ?? '—' }}
       </span>
       <span v-if="unit" class="text-sm text-ink-3">{{ unit }}</span>

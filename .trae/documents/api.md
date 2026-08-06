@@ -21,6 +21,7 @@ ESP32 采集传感器数据后上报，服务端校验设备 Token 后写入 Pos
 | `light2_adc` | number | 否 | 光敏 2 ADC 原始值（0–4095） |
 | `aqi` | number | 否 | 空气质量指数（0–500） |
 | `temperature` | number | 否 | 温度（℃） |
+| `humidity` | number | 否 | 相对湿度（%，0–100） |
 | `presence` | boolean | 否 | 是否检测到有人 |
 | `reported_at` | string | 否 | 上报时间（ISO 8601），不传则用服务端时间 |
 
@@ -55,6 +56,7 @@ curl -X POST http://localhost:3001/api/reports \
     "light2_adc": 1850,
     "aqi": 65,
     "temperature": 24.5,
+    "humidity": 55.0,
     "presence": true
   }'
 ```
@@ -71,7 +73,7 @@ const char* DEVICE_ID    = "classroom-101";
 
 void uploadReport(float light1Pct, float light2Pct,
                   int light1Adc, int light2Adc,
-                  int aqi, float temp, bool presence) {
+                  int aqi, float temp, float hum, bool presence) {
   HTTPClient http;
   http.begin(SERVER_URL);
   http.addHeader("Authorization", String("Bearer ") + DEVICE_TOKEN);
@@ -85,6 +87,7 @@ void uploadReport(float light1Pct, float light2Pct,
     "\"light2_adc\":" + light2Adc + "," +
     "\"aqi\":" + aqi + "," +
     "\"temperature\":" + String(temp, 2) + "," +
+    "\"humidity\":" + String(hum, 1) + "," +
     "\"presence\":" + (presence ? "true" : "false") +
     "}";
 
@@ -113,7 +116,7 @@ void uploadReport(float light1Pct, float light2Pct,
     "device_id": "classroom-101",
     "light1": 73.5, "light2": 60.2,
     "light1_adc": 2048, "light2_adc": 1850,
-    "aqi": 65, "temperature": 24.5, "presence": true,
+    "aqi": 65, "temperature": 24.5, "humidity": 55.0, "presence": true,
     "reported_at": "2026-08-04T10:30:00.000Z",
     "received_at": "2026-08-04T10:30:00.512Z"
   }
@@ -146,7 +149,7 @@ void uploadReport(float light1Pct, float light2Pct,
 
 | Query 参数 | 默认 | 说明 |
 |------------|------|------|
-| `metric` | — | `light1` / `light2` / `light1_adc` / `light2_adc` / `aqi` / `temperature` / `presence` |
+| `metric` | — | `light1` / `light2` / `light1_adc` / `light2_adc` / `aqi` / `temperature` / `humidity` / `presence` |
 | `granularity` | `hour` | `hour` 或 `day` |
 | `device_id` | — | 按设备筛选 |
 | `start` / `end` | — | 时间范围 |
@@ -175,6 +178,7 @@ void uploadReport(float light1Pct, float light2Pct,
 | `light1_adc` / `light2_adc` | ADC | 0–4095 |
 | `aqi` | 指数 | 0–500（≤50 优，≤100 良，>100 污染） |
 | `temperature` | ℃ | -40 ~ 85 |
+| `humidity` | % | 0 ~ 100 |
 | `presence` | — | true/false |
 
 **错误格式**：`{ "ok": false, "error": "错误描述" }`。JWT 失效（401）时前端自动跳转登录。
