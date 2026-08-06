@@ -27,17 +27,25 @@ const selectedDevice = ref<string>('')
 const loadingLatest = ref(true)
 const refreshing = ref(false)
 const lastUpdated = ref<Date | null>(null)
+const tick = ref(0) // 每秒触发，驱动"最后上报"相对时间刷新
 
 const trendMetric = ref('temperature')
 const trendLoading = ref(false)
 const trendOption = ref<any>(null)
 
 let timer: number | undefined
+let tickTimer: number | undefined
 
 const isOnline = computed(() => {
+  void tick.value
   if (!latest.value) return false
   const t = new Date(latest.value.reported_at).getTime()
   return Date.now() - t < 90_000
+})
+
+const lastReportAgo = computed(() => {
+  void tick.value
+  return timeAgo(latest.value?.reported_at)
 })
 
 function aqiStatus(v: number | null) {
@@ -130,9 +138,11 @@ onMounted(async () => {
   await fetchDevices()
   await refreshAll()
   timer = window.setInterval(refreshAll, 15_000)
+  tickTimer = window.setInterval(() => { tick.value++ }, 1000)
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  if (tickTimer) clearInterval(tickTimer)
 })
 </script>
 
@@ -162,7 +172,7 @@ onUnmounted(() => {
       <div class="flex items-center gap-2 text-sm text-ink-2">
         <Radio :size="15" class="text-ink-3" />
         <span class="text-ink-3">最后上报：</span>
-        <span class="font-medium text-ink-1">{{ timeAgo(latest?.reported_at) }}</span>
+        <span class="font-medium text-ink-1">{{ lastReportAgo }}</span>
       </div>
 
       <div class="flex-1" />
