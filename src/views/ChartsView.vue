@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
+import { Download } from 'lucide-vue-next'
 import { api, type StatsPoint, type DeviceInfo } from '@/api/client'
 import { useUiStore } from '@/stores/ui'
 import FluentButton from '@/components/FluentButton.vue'
@@ -91,7 +92,83 @@ function chartOption(key: string) {
     unit: meta.unit,
     color: meta.color,
     area: true,
+    zoom: true,
   })
+}
+
+// 收集各图表实例，用于导出
+const chartRefs = ref<any[]>([])
+const exporting = ref(false)
+
+function setChartRef(el: any, idx: number) {
+  if (el) chartRefs.value[idx] = el
+}
+
+/** 一键导出：把所有图表拼成一张 PNG 下载 */
+async function exportAll() {
+  const targets = metricEntries
+    .map(([key, m], idx) => ({
+    label: m.label,
+    url: chartRefs.value[idx]?.getDataURL?.() || '',
+  }))
+    .filter((t) => t.url)
+
+  if (!targets.length) return
+  exporting.value = true
+  try {
+    const imgs = await Promise.all(
+      targets.map(
+        (t) =>
+          new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image()
+            img.onload = () => resolve(img)
+            img.onerror = reject
+            img.src = t.url
+          }),
+      ),
+    )
+
+    const padX = 24
+    const gap = 20
+    const titleH = 30
+    const contentW = Math.max(...imgs.map((i) => i.width))
+    const totalH = imgs.reduce((s, img) => s + titleH + img.height + gap, gap)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = contentW + padX * 2
+    canvas.height = totalH
+    const ctx = canvas.getContext('2d')!
+    const bg =
+      getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() ||
+      '#ffffff'
+    const txt =
+      getComputedStyle(document.documentElement).getPropertyValue('--text-1').trim() ||
+      '#333333'
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    let y = gap
+    imgs.forEach((img, idx) => {
+      ctx.fillStyle = txt
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillText(targets[idx].label, padX, y + 18)
+      y += titleH
+      ctx.drawImage(img, padX + (contentW - img.width) / 2, y)
+      y += img.height + gap
+    })
+
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `charts_${new Date().toISOString().slice(0, 10)}.png`
+      a.click()
+      URL.revokeObjectURL(url)
+    })
+  } finally {
+    exporting.value = false
+  }
 }
 
 watch(() => ui.isDark, load)
@@ -126,13 +203,24 @@ onMounted(async () => {
             近 30d
           </FluentButton>
         </div>
+
+        <FluentButton
+          variant="standard"
+          :loading="exporting"
+          :disabled="exporting || loading"
+          class="w-full sm:w-auto sm:ml-auto"
+          @click="exportAll"
+        >
+          <Download :size="15" />
+          导出图表
+        </FluentButton>
       </div>
     </div>
 
     <!-- 6 个指标小图表网格（一行俩） -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div
-        v-for="[key, m] in metricEntries"
+        v-for="([key, m], idx) in metricEntries"
         :key="key"
         class="fluent-card p-4 fade-up"
       >
@@ -141,7 +229,7 @@ onMounted(async () => {
           <h3 class="text-[13px] font-semibold text-ink-1">{{ m.label }}</h3>
           <span class="text-[11px] text-ink-4 ml-auto">单位：{{ m.unit }}</span>
         </div>
-        <BaseChart :option="chartOption(key)" :loading="loading" height="190px" />
+        <BaseChart :ref="(el: any) => setChartRef(el, idx)" :option="chartOption(key)" :loading="loading" height="230px" />
       </div>
     </div>
   </div>
