@@ -56,7 +56,12 @@ async function request<T>(
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, { ...options, headers })
+  } catch {
+    throw new Error('网络请求失败，请检查后端服务是否已启动')
+  }
   let data: any = null
   try {
     data = await res.json()
@@ -67,8 +72,13 @@ async function request<T>(
   if (!res.ok) {
     const msg = data?.error || `请求失败 (HTTP ${res.status})`
     if (res.status === 401) {
+      // token 失效：清除并跳登录页（整页刷新，保证状态干净）
       localStorage.removeItem('admin_token')
-      if (location.pathname !== '/login') location.href = '/login'
+      if (location.pathname !== '/login') {
+        location.replace(
+          `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`,
+        )
+      }
     }
     throw new Error(msg)
   }

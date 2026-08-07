@@ -63,7 +63,7 @@ export function trendLineOption(cfg: LineConfig) {
             type: 'inside',
             start: 0,
             end: 100,
-            moveOnMouseMove: false,
+            moveOnMouseMove: false, // 关键修复：鼠标移动不触发平移
             moveOnMouseWheel: true,
             zoomOnMouseWheel: false,
           },
@@ -88,8 +88,8 @@ export function trendLineOption(cfg: LineConfig) {
         symbol: 'circle',
         symbolSize: 6,
         showSymbol: false,
-        sampling: 'lttb',
-        large: true,
+        sampling: 'lttb', // 数据降采样
+        large: true, // 大数据模式
         largeThreshold: 500,
         lineStyle: { width: 2.5, color },
         itemStyle: { color },
@@ -100,7 +100,7 @@ export function trendLineOption(cfg: LineConfig) {
                 x: 0, y: 0, x2: 0, y2: 1,
                 colorStops: [
                   { offset: 0, color: hexToRgba(color, 0.28) },
-                { offset: 1, color: hexToRgba(color, 0.02) },
+                  { offset: 1, color: hexToRgba(color, 0.02) },
                 ],
               },
             }

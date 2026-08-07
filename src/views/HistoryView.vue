@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Download, Search, ChevronLeft, ChevronRight, Inbox, Radio, Calendar } from 'lucide-vue-next'
+import { Download, Search, ChevronLeft, ChevronRight, Inbox, Radio, Calendar, AlertTriangle } from 'lucide-vue-next'
 import { api, type ReportRow, type DeviceInfo } from '@/api/client'
 import FluentButton from '@/components/FluentButton.vue'
 import FluentSelect from '@/components/FluentSelect.vue'
@@ -13,6 +13,7 @@ const total = ref(0)
 const page = ref(1)
 const size = ref(20)
 const loading = ref(false)
+const errorMsg = ref('')
 
 const deviceId = ref('')
 const date = ref('') // 空 = 实时模式（最新数据）
@@ -24,13 +25,14 @@ async function fetchDevices() {
   try {
     const res = await api.devices()
     devices.value = res.data
-  } catch {
-    /* ignore */
+  } catch (e: any) {
+    errorMsg.value = e?.message || '加载设备列表失败'
   }
 }
 
 async function load() {
   loading.value = true
+  errorMsg.value = ''
   try {
     let startIso: string | undefined
     let endIso: string | undefined
@@ -49,9 +51,10 @@ async function load() {
     })
     items.value = res.data.items
     total.value = res.data.total
-  } catch {
+  } catch (e: any) {
     items.value = []
     total.value = 0
+    errorMsg.value = e?.message || '加载历史数据失败'
   } finally {
     loading.value = false
   }
@@ -115,6 +118,22 @@ onUnmounted(() => {
 
 <template>
   <div class="space-y-4 sm:space-y-5">
+    <!-- 错误提示横幅 -->
+    <div
+      v-if="errorMsg"
+      class="fluent-card p-3 fade-up flex items-center gap-3"
+      style="border-color: var(--danger)"
+    >
+      <AlertTriangle :size="18" class="shrink-0" style="color: var(--danger)" />
+      <span class="text-sm text-ink-1 flex-1">{{ errorMsg }}</span>
+      <button
+        class="shrink-0 w-6 h-6 rounded grid place-items-center text-ink-3 hover:text-ink-1 hover:bg-surface-hover transition-colors"
+        @click="errorMsg = ''"
+      >
+        ×
+      </button>
+    </div>
+
     <!-- 筛选栏（移动端网格堆叠） -->
     <div class="fluent-card p-4 fade-up">
       <div class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end sm:gap-4">

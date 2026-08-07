@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Radio,
   Cpu,
+  AlertTriangle,
 } from 'lucide-vue-next'
 import { api, type ReportRow, type DeviceInfo } from '@/api/client'
 import { useUiStore } from '@/stores/ui'
@@ -29,6 +30,7 @@ const loadingLatest = ref(true)
 const refreshing = ref(false)
 const lastUpdated = ref<Date | null>(null)
 const tick = ref(0) // 每秒触发，驱动"最后上报"相对时间刷新
+const errorMsg = ref('') // 数据加载错误提示
 
 const trendMetric = ref('temperature')
 const trendLoading = ref(false)
@@ -91,8 +93,8 @@ async function fetchDevices() {
     if (!selectedDevice.value && devices.value[0]) {
       selectedDevice.value = devices.value[0].device_id
     }
-  } catch (e) {
-    /* ignore */
+  } catch (e: any) {
+    errorMsg.value = e?.message || '加载设备列表失败'
   }
 }
 
@@ -105,8 +107,9 @@ async function fetchLatest(silent = false) {
     const res = await api.latest(selectedDevice.value || undefined)
     latest.value = res.data
     lastUpdated.value = new Date()
-  } catch (e) {
-    /* ignore */
+    if (!silent) errorMsg.value = ''
+  } catch (e: any) {
+    if (!silent) errorMsg.value = e?.message || '获取最新数据失败'
   } finally {
     if (!silent) {
       loadingLatest.value = false
@@ -136,14 +139,15 @@ async function fetchTrend() {
       area: true,
       zoom: true,
     })
-  } catch (e) {
-    /* ignore */
+  } catch (e: any) {
+    errorMsg.value = e?.message || '获取趋势数据失败'
   } finally {
     trendLoading.value = false
   }
 }
 
 async function refreshAll() {
+  errorMsg.value = ''
   await Promise.all([fetchLatest(), fetchTrend()])
 }
 
@@ -170,6 +174,22 @@ onUnmounted(() => {
 
 <template>
   <div class="space-y-6">
+    <!-- 错误提示横幅 -->
+    <div
+      v-if="errorMsg"
+      class="fluent-card p-3 fade-up flex items-center gap-3"
+      style="border-color: var(--danger)"
+    >
+      <AlertTriangle :size="18" class="shrink-0" style="color: var(--danger)" />
+      <span class="text-sm text-ink-1 flex-1">{{ errorMsg }}</span>
+      <button
+        class="shrink-0 w-6 h-6 rounded grid place-items-center text-ink-3 hover:text-ink-1 hover:bg-surface-hover transition-colors"
+        @click="errorMsg = ''"
+      >
+        ×
+      </button>
+    </div>
+
     <!-- 设备状态条 -->
     <div class="fluent-card p-4 fade-up flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
