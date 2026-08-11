@@ -125,7 +125,7 @@ function logout() {
           </div>
           <div class="hidden sm:block leading-tight">
             <div class="text-[13px] font-medium text-ink-1">{{ auth.username || 'admin' }}</div>
-            <div class="text-[11px] text-ink-4">管理员</div>
+            <div class="text-[11px] text-ink-4">{{ auth.role === 'viewer' ? '只读用户' : '管理员' }}</div>
           </div>
         </div>
 

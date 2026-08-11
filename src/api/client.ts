@@ -96,7 +96,7 @@ function qs(params: Record<string, string | number | undefined>): string {
 
 export const api = {
   login(username: string, password: string) {
-    return request<{ ok: true; token: string; username: string }>(
+    return request<{ ok: true; token: string; username: string; role: 'admin' | 'viewer' }>(
       '/auth/login',
       { method: 'POST', body: JSON.stringify({ username, password }) },
     )

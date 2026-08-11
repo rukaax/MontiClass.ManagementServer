@@ -27,6 +27,9 @@ function isTokenExpired(token: string | null): boolean {
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('admin_token'))
   const username = ref<string | null>(localStorage.getItem('admin_user'))
+  const role = ref<'admin' | 'viewer' | null>(
+    (localStorage.getItem('admin_role') as 'admin' | 'viewer') || null,
+  )
 
   // 关键修复：不仅检查 token 存在，还要检查未过期，避免残留失效 token 直接进面板
   const isAuthenticated = computed(
@@ -37,15 +40,19 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await api.login(user, pass)
     token.value = res.token
     username.value = res.username
+    role.value = res.role
     localStorage.setItem('admin_token', res.token)
     localStorage.setItem('admin_user', res.username)
+    localStorage.setItem('admin_role', res.role)
   }
 
   function logout(): void {
     token.value = null
     username.value = null
+    role.value = null
     localStorage.removeItem('admin_token')
     localStorage.removeItem('admin_user')
+    localStorage.removeItem('admin_role')
   }
 
   /** 供 401 拦截器调用：清除失效 token，使 isAuthenticated 立即变 false */
@@ -54,5 +61,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('admin_token')
   }
 
-  return { token, username, isAuthenticated, login, logout, clearInvalid }
+  return { token, username, role, isAuthenticated, login, logout, clearInvalid }
 })

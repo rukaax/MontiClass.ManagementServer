@@ -197,7 +197,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-else class="mt-4">
+      <div v-else-if="auth.role === 'admin'" class="mt-4">
         <FluentButton variant="standard" @click="showRotate = true">
           <RefreshCw :size="15" />
           轮换 Token
@@ -206,7 +206,7 @@ onMounted(() => {
     </div>
 
     <!-- 修改密码 -->
-    <div class="fluent-card p-4 sm:p-6 fade-up">
+    <div v-if="auth.role === 'admin'" class="fluent-card p-4 sm:p-6 fade-up">
       <div class="flex items-center gap-3 mb-5">
         <span
           class="w-10 h-10 rounded-lg grid place-items-center"
@@ -368,7 +368,7 @@ onMounted(() => {
         </div>
         <div>
           <div class="text-[12px] text-ink-4 mb-1">角色</div>
-          <FluentBadge status="info">管理员</FluentBadge>
+          <FluentBadge :status="auth.role === 'viewer' ? 'info' : 'info'">{{ auth.role === 'viewer' ? '只读用户' : '管理员' }}</FluentBadge>
         </div>
       </div>
       <p class="mt-4 text-[12px] text-ink-4">
