@@ -2,7 +2,7 @@
  * 系统设置路由（JWT 鉴权）
  */
 import { Router, type Request, type Response } from 'express'
-import { authJwt } from '../middleware/authJwt.js'
+import { authJwt, requireAdmin } from '../middleware/authJwt.js'
 import {
   getDeviceToken,
   updateDeviceToken,
@@ -29,7 +29,7 @@ router.get('/token', async (_req: Request, res: Response): Promise<void> => {
 })
 
 /** PUT /api/settings/token —— 手动设置设备 Token（自定义） */
-router.put('/token', async (req: Request, res: Response): Promise<void> => {
+router.put('/token', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const newToken = String(req.body?.new_token || '').trim()
   if (newToken.length < 6) {
     res.status(400).json({ ok: false, error: 'Token 至少 6 个字符' })
@@ -40,13 +40,13 @@ router.put('/token', async (req: Request, res: Response): Promise<void> => {
 })
 
 /** POST /api/settings/token/rotate —— 随机生成新 Token，返回明文（仅此一次） */
-router.post('/token/rotate', async (_req: Request, res: Response): Promise<void> => {
+router.post('/token/rotate', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   const token = await rotateDeviceToken()
   res.json({ ok: true, data: { token } })
 })
 
 /** POST /api/settings/password —— 修改当前管理员密码 */
-router.post('/password', async (req: Request, res: Response): Promise<void> => {
+router.post('/password', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = (req as Request & { admin?: { sub: string } }).admin
   const username = admin?.sub || ''
   const current = String(req.body?.current_password || '')

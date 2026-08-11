@@ -3,7 +3,7 @@
  * 账号密码存于数据库 users 表，密码使用 pgcrypto bcrypt 哈希。
  */
 import { Router, type Request, type Response } from 'express'
-import { signAdminToken } from '../middleware/authJwt.js'
+import { signToken } from '../middleware/authJwt.js'
 import { pool } from '../db/pool.js'
 
 const router = Router()
@@ -33,8 +33,8 @@ router.post(
         return
       }
       const user = rows[0]
-      const token = signAdminToken(user.username)
-      res.json({ ok: true, token, username: user.username })
+      const token = signToken(user.username, user.role)
+      res.json({ ok: true, token, username: user.username, role: user.role })
     } catch (e) {
       console.error('[auth] login failed', e)
       res.status(500).json({ ok: false, error: '登录失败，请检查数据库连接' })
