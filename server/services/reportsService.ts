@@ -101,6 +101,62 @@ export async function getHistory(opts: HistoryOptions) {
   return { total, page, size, items: rows }
 }
 
+export interface TimelinePoint {
+  t: string
+  v: number | null
+}
+
+export interface TimelineOptions {
+  deviceId?: string
+  start?: string
+  end?: string
+  metric: string
+}
+
+const METRIC_COLUMNS: Record<string, string> = {
+  light1: 'light1',
+  light2: 'light2',
+  light1_adc: 'light1_adc',
+  light2_adc: 'light2_adc',
+  aqi: 'aqi',
+  temperature: 'temperature',
+  humidity: 'humidity',
+  presence: '(presence::int)',
+}
+
+/** 获取指定指标的原始数据点（按时间升序），用于图表全量绘制 */
+export async function getTimeline(
+  opts: TimelineOptions,
+): Promise<{ metric: string; points: TimelinePoint[] }> {
+  const col = METRIC_COLUMNS[opts.metric]
+  if (!col) throw new Error(`unsupported metric: ${opts.metric}`)
+
+  const conditions: string[] = []
+  const params: (string | number)[] = []
+  if (opts.deviceId) {
+    params.push(opts.deviceId)
+    conditions.push(`device_id = $${params.length}`)
+  }
+  if (opts.start) {
+    params.push(opts.start)
+    conditions.push(`reported_at >= $${params.length}`)
+  }
+  if (opts.end) {
+    params.push(opts.end)
+    conditions.push(`reported_at <= $${params.length}`)
+  }
+
+  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
+  const { rows } = await pool.query<{ t: string; v: number | null }>(
+    `SELECT reported_at AS t, ${col} AS v
+     FROM device_reports ${where}
+     ORDER BY reported_at ASC
+     LIMIT 5000`,
+    params,
+  )
+  return { metric: opts.metric, points: rows as TimelinePoint[] }
+}
+
 export interface StatsOptions {
   deviceId?: string
   start?: string

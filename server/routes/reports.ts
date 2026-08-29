@@ -9,6 +9,7 @@ import {
   getLatest,
   getHistory,
   getStats,
+  getTimeline,
 } from '../services/reportsService.js'
 import type { ReportPayload } from '../types.js'
 
@@ -114,6 +115,29 @@ router.get(
       res.json({ ok: true, data: result })
     } catch (e) {
       console.error('[reports] stats failed', e)
+      res.status(500).json({ ok: false, error: 'query failed' })
+    }
+  },
+)
+
+/** GET /api/reports/timeline —— 原始数据点（JWT），用于图表全量绘制 */
+router.get(
+  '/timeline',
+  authJwt,
+  async (req: Request, res: Response): Promise<void> => {
+    const q = req.query
+    const metric = typeof q.metric === 'string' ? String(q.metric) : 'temperature'
+    try {
+      const result = await getTimeline({
+        deviceId:
+          typeof q.device_id === 'string' ? String(q.device_id) : undefined,
+        start: typeof q.start === 'string' ? String(q.start) : undefined,
+        end: typeof q.end === 'string' ? String(q.end) : undefined,
+        metric,
+      })
+      res.json({ ok: true, data: result })
+    } catch (e) {
+      console.error('[reports] timeline failed', e)
       res.status(500).json({ ok: false, error: 'query failed' })
     }
   },

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
-import { api, type StatsPoint, type DeviceInfo } from '@/api/client'
+import { api, type TimelinePoint, type DeviceInfo } from '@/api/client'
 import { useUiStore } from '@/stores/ui'
 import FluentButton from '@/components/FluentButton.vue'
 import FluentSelect from '@/components/FluentSelect.vue'
+import FluentInput from '@/components/FluentInput.vue'
 import BaseChart from '@/components/BaseChart.vue'
 import { trendLineOption, METRIC_META } from '@/lib/chartOptions'
 import { toLocalInput } from '@/lib/format'
@@ -14,13 +15,12 @@ const ui = useUiStore()
 const devices = ref<DeviceInfo[]>([])
 const deviceId = ref('')
 const preset = ref('24h')
-const granularity = ref<'hour' | 'day'>('hour')
 const start = ref(toLocalInput(new Date(Date.now() - 24 * 3600 * 1000)))
 const end = ref(toLocalInput(new Date()))
 const loading = ref(false)
 
-// 各指标数据
-const metricData = reactive<Record<string, StatsPoint[]>>({})
+// 各指标原始数据点
+const metricData = reactive<Record<string, TimelinePoint[]>>({})
 const metricEntries = Object.entries(METRIC_META)
 
 function toIso(local: string): string | undefined {
@@ -35,16 +35,19 @@ function applyPreset(p: string) {
   let s: Date
   if (p === '24h') {
     s = new Date(now.getTime() - 24 * 3600 * 1000)
-    granularity.value = 'hour'
   } else if (p === '7d') {
     s = new Date(now.getTime() - 7 * 24 * 3600 * 1000)
-    granularity.value = 'day'
   } else {
     s = new Date(now.getTime() - 30 * 24 * 3600 * 1000)
-    granularity.value = 'day'
   }
   start.value = toLocalInput(s)
   end.value = toLocalInput(now)
+  load()
+}
+
+/** 手动选择日期范围后查询 */
+function applyCustomRange() {
+  preset.value = ''
   load()
 }
 
@@ -65,15 +68,14 @@ async function load() {
     const results = await Promise.all(
       metricEntries.map(([k]) =>
         api
-          .stats({
+          .timeline({
             metric: k,
-            granularity: granularity.value,
             deviceId: deviceId.value || undefined,
             start: sIso,
             end: eIso,
           })
           .then((r) => [k, r.data.points] as const)
-          .catch(() => [k, [] as StatsPoint[]] as const),
+          .catch(() => [k, [] as TimelinePoint[]] as const),
       ),
     )
     for (const [k, pts] of results) metricData[k] = pts
@@ -86,8 +88,9 @@ function chartOption(key: string) {
   const meta = METRIC_META[key]
   const points = metricData[key] || []
   if (!points.length) return null
+  // 将 TimelinePoint 转为 trendLineOption 需要的 StatsPoint 结构
   return trendLineOption({
-    points,
+    points: points.map((p) => ({ t: p.t, avg: p.v, min: null, max: null, count: 1 })),
     name: meta.label,
     unit: meta.unit,
     color: meta.color,
@@ -181,7 +184,7 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-5">
-    <!-- 控制栏（精简） -->
+    <!-- 控制栏 -->
     <div class="fluent-card p-4 fade-up">
       <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
         <FluentSelect v-model="deviceId" label="设备" class="w-full sm:w-40" @update:modelValue="load">
@@ -192,7 +195,7 @@ onMounted(async () => {
         </FluentSelect>
 
         <div class="flex flex-wrap items-end gap-1.5">
-          <span class="block mb-1.5 text-[13px] font-medium text-ink-2 mr-1">时间</span>
+          <span class="block mb-1.5 text-[13px] font-medium text-ink-2 mr-1">快捷</span>
           <FluentButton size="sm" :variant="preset === '24h' ? 'primary' : 'standard'" @click="applyPreset('24h')">
             近 24h
           </FluentButton>
@@ -203,6 +206,23 @@ onMounted(async () => {
             近 30d
           </FluentButton>
         </div>
+
+        <FluentInput
+          v-model="start"
+          type="datetime-local"
+          label="开始时间"
+          class="w-full sm:w-44"
+        />
+        <FluentInput
+          v-model="end"
+          type="datetime-local"
+          label="结束时间"
+          class="w-full sm:w-44"
+        />
+
+        <FluentButton variant="primary" @click="applyCustomRange">
+          查询
+        </FluentButton>
 
         <FluentButton
           variant="standard"

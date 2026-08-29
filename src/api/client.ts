@@ -33,6 +33,16 @@ export interface StatsData {
   points: StatsPoint[]
 }
 
+export interface TimelinePoint {
+  t: string
+  v: number | null
+}
+
+export interface TimelineData {
+  metric: string
+  points: TimelinePoint[]
+}
+
 export interface DeviceInfo {
   device_id: string
   last_seen: string
@@ -166,5 +176,20 @@ export const api = {
   },
   devices() {
     return request<{ ok: true; data: DeviceInfo[] }>('/settings/devices')
+  },
+  timeline(p: {
+    metric: string
+    deviceId?: string
+    start?: string
+    end?: string
+  }) {
+    return request<{ ok: true; data: TimelineData }>(
+      `/reports/timeline${qs({
+        metric: p.metric,
+        device_id: p.deviceId,
+        start: p.start,
+        end: p.end,
+      })}`,
+    )
   },
 }
