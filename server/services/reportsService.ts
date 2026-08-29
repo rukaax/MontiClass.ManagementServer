@@ -124,7 +124,8 @@ const METRIC_COLUMNS: Record<string, string> = {
   presence: '(presence::int)',
 }
 
-/** 获取指定指标的原始数据点（按时间升序），用于图表全量绘制 */
+/** 获取指定指标的数据点（按时间升序），用于图表全量绘制
+ *  自动分桶：当范围内点数过多时按时间桶聚合，控制返回点数在 ~1000 以内 */
 export async function getTimeline(
   opts: TimelineOptions,
 ): Promise<{ metric: string; points: TimelinePoint[] }> {
@@ -145,14 +146,23 @@ export async function getTimeline(
     params.push(opts.end)
     conditions.push(`reported_at <= $${params.length}`)
   }
-
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
+
+  // 计算时间跨度，决定分桶秒数（目标 ~1000 桶）
+  const startTs = opts.start ? new Date(opts.start).getTime() : Date.now() - 30 * 86400_000
+  const endTs = opts.end ? new Date(opts.end).getTime() : Date.now()
+  const totalSec = Math.max(60, (endTs - startTs) / 1000)
+  const bucketSec = Math.max(1, Math.round(totalSec / 1000))
+
+  // 动态分桶：FLOOR(epoch / bucket) * bucket 作为桶边界
+  const bucketParamIdx = params.length + 1
   const { rows } = await pool.query<{ t: string; v: number | null }>(
-    `SELECT reported_at AS t, ${col} AS v
-     FROM device_reports ${where}
-     ORDER BY reported_at ASC
-     LIMIT 5000`,
-    params,
+    `SELECT to_timestamp(FLOOR(EXTRACT(epoch FROM reported_at) / $${bucketParamIdx}) * $${bucketParamIdx}) AS t,
+            AVG(${col})::float8 AS v
+     FROM device_reports ${where ? where + ` AND ${col} IS NOT NULL` : `WHERE ${col} IS NOT NULL`}
+     GROUP BY t
+     ORDER BY t ASC`,
+    [...params, bucketSec],
   )
   return { metric: opts.metric, points: rows as TimelinePoint[] }
 }
