@@ -16,9 +16,16 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const deviceId = ref('')
-const date = ref('') // 空 = 实时模式（最新数据）
+const startDate = ref('') // 空 = 不限起始
+const endDate = ref('') // 空 = 不限结束
 
-const isRealtime = computed(() => !date.value)
+const hasRange = computed(() => !!(startDate.value || endDate.value))
+const isRealtime = computed(() => !hasRange.value)
+const rangeLabel = computed(() => {
+  if (startDate.value && endDate.value) return `${startDate.value} ~ ${endDate.value}`
+  if (startDate.value) return `${startDate.value} 起`
+  return `截至 ${endDate.value}`
+})
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
 
 async function fetchDevices() {
@@ -36,11 +43,19 @@ async function load() {
   try {
     let startIso: string | undefined
     let endIso: string | undefined
-    if (date.value) {
-      const s = new Date(`${date.value}T00:00:00`)
-      const e = new Date(`${date.value}T23:59:59`)
+    if (startDate.value) {
+      const s = new Date(`${startDate.value}T00:00:00`)
       if (!isNaN(s.getTime())) startIso = s.toISOString()
+    }
+    if (endDate.value) {
+      const e = new Date(`${endDate.value}T23:59:59.999`)
       if (!isNaN(e.getTime())) endIso = e.toISOString()
+    }
+    if (startIso && endIso && startIso > endIso) {
+      items.value = []
+      total.value = 0
+      errorMsg.value = '起始日期不能晚于结束日期'
+      return
     }
     const res = await api.history({
       deviceId: deviceId.value || undefined,
@@ -63,6 +78,12 @@ async function load() {
 async function search() {
   page.value = 1
   await load()
+}
+
+function clearRange() {
+  startDate.value = ''
+  endDate.value = ''
+  search()
 }
 
 function go(p: number) {
@@ -99,17 +120,19 @@ function exportCsv() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `history_${Date.now()}.csv`
+  a.download = `history_${startDate.value || 'all'}_${endDate.value || 'now'}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
 
-// 每 10 秒自动刷新
+// 实时模式（无日期范围）每 10 秒自动刷新
 let timer: number | undefined
 onMounted(async () => {
   await fetchDevices()
   await load()
-  timer = window.setInterval(load, 10000)
+  timer = window.setInterval(() => {
+    if (!hasRange.value) load()
+  }, 10000)
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -145,13 +168,26 @@ onUnmounted(() => {
         </FluentSelect>
 
         <label class="block">
-          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">日期</span>
+          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">起始日期</span>
           <div class="relative">
             <Calendar :size="14" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
             <input
-              v-model="date"
+              v-model="startDate"
               type="date"
-              placeholder="不选=实时"
+              placeholder="不选=不限"
+              class="w-full h-9 pl-8 pr-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
+            />
+          </div>
+        </label>
+
+        <label class="block">
+          <span class="block mb-1.5 text-[13px] font-medium text-ink-2">结束日期</span>
+          <div class="relative">
+            <Calendar :size="14" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
+            <input
+              v-model="endDate"
+              type="date"
+              placeholder="不选=不限"
               class="w-full h-9 pl-8 pr-3 rounded-fluent bg-surface-card text-ink-1 text-sm border border-stroke-strong focus:outline-none focus:border-fluent-primary focus:ring-2 focus:ring-fluent-primary/30"
             />
           </div>
@@ -172,6 +208,9 @@ onUnmounted(() => {
             <Download :size="15" />
             导出
           </FluentButton>
+          <FluentButton v-if="hasRange" variant="subtle" @click="clearRange">
+            清除日期
+          </FluentButton>
         </div>
 
         <div class="col-span-2 sm:ml-auto flex items-center">
@@ -184,7 +223,7 @@ onUnmounted(() => {
           <FluentBadge v-else status="info" dot>
             <span class="flex items-center gap-1">
               <Calendar :size="12" />
-              历史 · {{ date }}
+              历史 · {{ rangeLabel }}
             </span>
           </FluentBadge>
         </div>

@@ -29,6 +29,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/ChartsView.vue'),
       },
       {
+        path: 'ai',
+        name: 'ai',
+        component: () => import('@/views/AiView.vue'),
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),

@@ -63,6 +63,20 @@ export async function migrate(): Promise<void> {
       );
     `)
 
+    // AI 助手模型配置（单行；API Key 加密存储）
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_config (
+        id          SMALLINT     PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        base_url    TEXT         NOT NULL DEFAULT '',
+        api_key_enc TEXT         NOT NULL DEFAULT '',
+        model       VARCHAR(128) NOT NULL DEFAULT '',
+        updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      );
+    `)
+    await client.query(
+      `INSERT INTO ai_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;`,
+    )
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id            BIGSERIAL    PRIMARY KEY,

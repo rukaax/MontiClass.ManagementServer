@@ -12,6 +12,7 @@ import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import reportsRoutes from './routes/reports.js'
 import settingsRoutes from './routes/settings.js'
+import aiRoutes from './routes/ai.js'
 
 dotenv.config()
 
@@ -39,6 +40,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use('/api/auth', authRoutes)
 app.use('/api/reports', reportsRoutes)
 app.use('/api/settings', settingsRoutes)
+app.use('/api/ai', aiRoutes)
 
 /** 健康检查 */
 app.use('/api/health', (_req: Request, res: Response): void => {

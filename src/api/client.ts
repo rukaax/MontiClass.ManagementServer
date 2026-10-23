@@ -49,6 +49,35 @@ export interface DeviceInfo {
   count: number
 }
 
+export interface AiConfigInfo {
+  base_url: string
+  model: string
+  api_key_masked: string
+  has_key: boolean
+  configured: boolean
+  updated_at: string | null
+}
+
+export interface AiToolCall {
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
+}
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant' | 'tool'
+  content: string | null
+  tool_calls?: AiToolCall[]
+  tool_call_id?: string
+}
+
+export interface AiChatState {
+  connected: boolean
+  ip?: string
+  status?: unknown
+  actuator?: unknown
+}
+
 const BASE = '/api'
 
 function getToken(): string | null {
@@ -191,5 +220,20 @@ export const api = {
         end: p.end,
       })}`,
     )
+  },
+  aiConfig() {
+    return request<{ ok: true; data: AiConfigInfo }>('/ai/config')
+  },
+  updateAiConfig(p: { base_url: string; model: string; api_key?: string }) {
+    return request<{ ok: true; data: AiConfigInfo }>('/ai/config', {
+      method: 'PUT',
+      body: JSON.stringify(p),
+    })
+  },
+  aiChat(p: { messages: AiChatMessage[]; state?: AiChatState }) {
+    return request<{ ok: true; data: { message: AiChatMessage } }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify(p),
+    })
   },
 }

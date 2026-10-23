@@ -10,6 +10,7 @@ import {
   Moon,
   LogOut,
   GraduationCap,
+  Bot,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -24,6 +25,7 @@ const nav = [
   { name: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
   { name: 'history', label: '历史', icon: History },
   { name: 'charts', label: '图表', icon: BarChart3 },
+  { name: 'ai', label: 'AI 助手', icon: Bot },
   { name: 'settings', label: '设置', icon: SettingsIcon },
 ]
 

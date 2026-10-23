@@ -8,8 +8,9 @@ import {
   RefreshCw,
   AlertTriangle,
   Lock,
+  Bot,
 } from 'lucide-vue-next'
-import { api, type DeviceInfo } from '@/api/client'
+import { api, type DeviceInfo, type AiConfigInfo } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import FluentButton from '@/components/FluentButton.vue'
 import FluentInput from '@/components/FluentInput.vue'
@@ -37,6 +38,15 @@ const pwMsg = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const devices = ref<DeviceInfo[]>([])
 const devicesLoading = ref(true)
 
+// ===== AI 模型 =====
+const aiCfg = ref<AiConfigInfo | null>(null)
+const aiBaseUrl = ref('')
+const aiModel = ref('')
+const aiKey = ref('')
+const aiLoading = ref(true)
+const aiSaving = ref(false)
+const aiMsg = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+
 async function fetchToken() {
   tokenLoading.value = true
   try {
@@ -59,6 +69,49 @@ async function fetchDevices() {
     /* ignore */
   } finally {
     devicesLoading.value = false
+  }
+}
+
+async function fetchAiConfig() {
+  aiLoading.value = true
+  try {
+    const res = await api.aiConfig()
+    aiCfg.value = res.data
+    aiBaseUrl.value = res.data.base_url
+    aiModel.value = res.data.model
+  } catch {
+    aiCfg.value = null
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+async function saveAiConfig() {
+  aiMsg.value = null
+  const base = aiBaseUrl.value.trim()
+  const model = aiModel.value.trim()
+  if (!base || !model) {
+    aiMsg.value = { type: 'error', text: 'Base URL 与模型名称不能为空' }
+    return
+  }
+  if (!aiCfg.value?.has_key && !aiKey.value.trim()) {
+    aiMsg.value = { type: 'error', text: '首次配置必须填写 API Key' }
+    return
+  }
+  aiSaving.value = true
+  try {
+    const res = await api.updateAiConfig({
+      base_url: base,
+      model,
+      api_key: aiKey.value.trim() || undefined,
+    })
+    aiCfg.value = res.data
+    aiKey.value = ''
+    aiMsg.value = { type: 'success', text: 'AI 模型配置已保存' }
+  } catch (e: any) {
+    aiMsg.value = { type: 'error', text: e?.message || '保存失败' }
+  } finally {
+    aiSaving.value = false
   }
 }
 
@@ -119,6 +172,7 @@ async function submitPassword() {
 onMounted(() => {
   fetchToken()
   fetchDevices()
+  fetchAiConfig()
 })
 </script>
 
@@ -202,6 +256,75 @@ onMounted(() => {
           <RefreshCw :size="15" />
           轮换 Token
         </FluentButton>
+      </div>
+    </div>
+
+    <!-- AI 模型配置 -->
+    <div v-if="auth.role === 'admin'" class="fluent-card p-4 sm:p-6 fade-up">
+      <div class="flex items-start justify-between mb-5">
+        <div class="flex items-center gap-3">
+          <span
+            class="w-10 h-10 rounded-lg grid place-items-center"
+            style="background: var(--info-bg); color: var(--info)"
+          >
+            <Bot :size="20" />
+          </span>
+          <div>
+            <h2 class="text-[15px] font-semibold text-ink-1">AI 模型配置</h2>
+            <p class="text-[12px] text-ink-4 mt-0.5">
+              用于「AI 助手」页面，支持 OpenAI 兼容的 Chat Completions 与工具调用
+            </p>
+          </div>
+        </div>
+        <FluentBadge :status="aiCfg?.configured ? 'success' : 'neutral'" dot>
+          {{ aiCfg?.configured ? '已配置' : '未配置' }}
+        </FluentBadge>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <FluentInput
+          v-model="aiBaseUrl"
+          label="Base URL"
+          placeholder="https://api.deepseek.com/v1"
+          :disabled="aiLoading"
+        />
+        <FluentInput
+          v-model="aiModel"
+          label="模型名称"
+          placeholder="deepseek-chat"
+          :disabled="aiLoading"
+        />
+        <FluentInput
+          v-model="aiKey"
+          type="password"
+          label="API Key"
+          :placeholder="aiCfg?.has_key ? '留空表示不修改' : 'sk-...'"
+          autocomplete="off"
+          :disabled="aiLoading"
+        />
+      </div>
+
+      <div class="mt-3 text-[12px] text-ink-4">
+        当前 Key：
+        <code class="font-mono text-ink-2">{{ aiLoading ? '••••••••' : aiCfg?.api_key_masked || '—' }}</code>
+        <span class="ml-3">Key 使用 AES-256-GCM 加密后存于数据库</span>
+      </div>
+
+      <div class="mt-4 flex items-center gap-3">
+        <FluentButton variant="primary" :loading="aiSaving" @click="saveAiConfig">
+          <Check :size="15" />
+          保存配置
+        </FluentButton>
+        <div
+          v-if="aiMsg"
+          class="px-3 py-2 rounded-fluent text-[13px]"
+          :style="{
+            background: aiMsg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+            color: aiMsg.type === 'success' ? 'var(--success)' : 'var(--danger)',
+          }"
+        >
+          {{ aiMsg.text }}
+        </div>
       </div>
     </div>
 

@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 -- ---------------------------------------------------------------------
+-- AI 助手模型配置表（单行，OpenAI 兼容接口；API Key 加密存储）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ai_config (
+    id          SMALLINT     PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    base_url    TEXT         NOT NULL DEFAULT '',   -- 如 https://api.deepseek.com/v1
+    api_key_enc TEXT         NOT NULL DEFAULT '',   -- AES-256-GCM 加密后的 API Key
+    model       VARCHAR(128) NOT NULL DEFAULT '',   -- 如 deepseek-chat
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO ai_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- ---------------------------------------------------------------------
 -- 管理员用户表（密码 bcrypt 哈希存储）
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
